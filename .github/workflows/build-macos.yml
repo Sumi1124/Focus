@@ -1,0 +1,31 @@
+name: Build macOS app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build FocusGuard
+    runs-on: macos-14
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Build application bundle
+        working-directory: FocusGuard
+        run: |
+          chmod +x Scripts/build-app.sh
+          Scripts/build-app.sh
+
+      - name: Upload downloadable macOS app
+        uses: actions/upload-artifact@v4
+        with:
+          name: FocusGuard-macOS
+          path: FocusGuard/build/FocusGuard.app
+          if-no-files-found: error
+          retention-days: 90
