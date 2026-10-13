@@ -4,7 +4,13 @@ StudyGuard is a separate focus-timer app in the Focus repository. The existing F
 
 ## Download
 
-Download the DMG and source archive from the [StudyGuard v1.0.1 release](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.0.1).
+Download the DMG and source archive from the [StudyGuard v1.0.2 release](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.0.2).
+
+## Features
+
+- Focus time today, total focus time, and sessions started, stored locally on your Mac.
+- Settings includes a GitHub release check. When an update is found, the release page provides the DMG for download and manual installation.
+- The updater checks the latest StudyGuard release at GitHub; it does not silently replace the app.
 
 ## Build
 
