@@ -19,14 +19,26 @@ final class FocusModel: ObservableObject {
     @Published var newDomain = ""
     @Published var activeTab = 0
     @Published var notice = "Pick a session length and choose what to keep out of reach."
+    @Published var totalFocusSeconds: Int
+    @Published var todayFocusSeconds: Int
+    @Published var completedSessions: Int
+    @Published var updateMessage = "Check for the latest StudyGuard release."
+    @Published var updateAvailable = false
+    @Published var isCheckingForUpdates = false
 
     private var endDate: Date?
     private var ticker: AnyCancellable?
     private var lastQuitRequest: [String: Date] = [:]
     private var browserChecksInProgress = Set<String>()
     private let defaults = UserDefaults.standard
+    private let statsDateKey = "focusSecondsByDay"
+    private var recordedToday: [String: Int]
 
     init() {
+        recordedToday = defaults.dictionary(forKey: statsDateKey) as? [String: Int] ?? [:]
+        totalFocusSeconds = recordedToday.values.reduce(0, +)
+        todayFocusSeconds = recordedToday[Self.dayKey(for: Date())] ?? 0
+        completedSessions = defaults.integer(forKey: "completedFocusSessions")
         if let data = defaults.data(forKey: "selectedApps"),
            let saved = try? JSONDecoder().decode([FocusApp].self, from: data) {
             selectedApps = saved
@@ -53,6 +65,8 @@ final class FocusModel: ObservableObject {
             secondsLeft = duration * 60
             endDate = Date().addingTimeInterval(TimeInterval(secondsLeft))
             isRunning = true
+            defaults.set(defaults.integer(forKey: "completedFocusSessions") + 1, forKey: "completedFocusSessions")
+            completedSessions = defaults.integer(forKey: "completedFocusSessions")
             notice = "Focus session active. Selected apps and sites are being kept out of reach."
             refreshTicker()
             closeSelectedApps()
@@ -113,8 +127,9 @@ final class FocusModel: ObservableObject {
     private func refreshTicker() {
         ticker?.cancel()
         guard isRunning else { return }
-        ticker = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect().sink { [weak self] _ in
+        ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect().sink { [weak self] _ in
             guard let self, let endDate = self.endDate else { return }
+            self.recordFocusSecond()
             let remaining = max(0, Int(ceil(endDate.timeIntervalSinceNow)))
             self.secondsLeft = remaining
             self.closeSelectedApps()
@@ -123,6 +138,73 @@ final class FocusModel: ObservableObject {
                 NSSound(named: "Glass")?.play()
             }
         }
+    }
+
+    private func recordFocusSecond() {
+        let key = Self.dayKey(for: Date())
+        recordedToday[key, default: 0] += 1
+        totalFocusSeconds += 1
+        todayFocusSeconds = recordedToday[key, default: 0]
+        defaults.set(recordedToday, forKey: statsDateKey)
+    }
+
+    private static func dayKey(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+
+    func checkForUpdates() {
+        guard !isCheckingForUpdates else { return }
+        isCheckingForUpdates = true
+        updateAvailable = false
+        updateMessage = "Checking GitHub for updates…"
+        guard let url = URL(string: "https://api.github.com/repos/Sumi1124/Focus/releases/latest") else { return }
+        var request = URLRequest(url: url)
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("StudyGuard macOS updater", forHTTPHeaderField: "User-Agent")
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isCheckingForUpdates = false
+                guard error == nil, let http = response as? HTTPURLResponse, http.statusCode == 200,
+                      let data, let release = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let tag = release["tag_name"] as? String,
+                      let htmlURL = release["html_url"] as? String,
+                      let pageURL = URL(string: htmlURL) else {
+                    self.updateMessage = "Couldn’t check GitHub. Check your internet connection and try again."
+                    return
+                }
+                let latest = tag.split(separator: "v").last.map(String.init) ?? tag
+                let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.1"
+                if Self.version(latest, isNewerThan: current) {
+                    self.updateAvailable = true
+                    self.updateMessage = "StudyGuard \(latest) is available. Open the release to download and install it."
+                    self.defaults.set(pageURL.absoluteString, forKey: "studyGuardLatestReleaseURL")
+                } else {
+                    self.updateMessage = "You’re up to date (version \(current))."
+                }
+            }
+        }.resume()
+    }
+
+    func openLatestRelease() {
+        guard let value = defaults.string(forKey: "studyGuardLatestReleaseURL"), let url = URL(string: value) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    private static func version(_ candidate: String, isNewerThan current: String) -> Bool {
+        let lhs = candidate.split(separator: ".").compactMap { Int($0) }
+        let rhs = current.split(separator: ".").compactMap { Int($0) }
+        for index in 0..<max(lhs.count, rhs.count) {
+            let a = index < lhs.count ? lhs[index] : 0
+            let b = index < rhs.count ? rhs[index] : 0
+            if a != b { return a > b }
+        }
+        return false
     }
 
     private func closeSelectedApps() {
@@ -221,6 +303,7 @@ struct StudyGuardApp: App {
 struct MainView: View {
     @ObservedObject var model: FocusModel
     @State private var showBrowser = false
+    @State private var showSettings = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -237,6 +320,7 @@ struct MainView: View {
         }
         .background(Color(red: 0.97, green: 0.965, blue: 0.945))
         .sheet(isPresented: $showBrowser) { StudyBrowser(model: model).frame(minWidth: 760, minHeight: 560) }
+        .sheet(isPresented: $showSettings) { SettingsView(model: model).frame(width: 470, height: 390) }
     }
 
     private var sidebar: some View {
@@ -249,6 +333,10 @@ struct MainView: View {
             sidebarItem("Focus", icon: "timer", index: 0)
             sidebarItem("Study Browser", icon: "safari", index: 1)
             Spacer()
+            Button { showSettings = true } label: {
+                Label("Settings", systemImage: "gearshape").font(.system(size: 12, weight: .medium))
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(11)
+            }.buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 8) {
                 Image(systemName: "sparkle").foregroundStyle(Color(red: 0.91, green: 0.48, blue: 0.25))
                 Text("One thing at a time.").font(.system(size: 13, weight: .semibold))
@@ -285,6 +373,7 @@ struct MainView: View {
     private var focusDashboard: some View {
         VStack(alignment: .leading, spacing: 18) {
             timerCard
+            statsCard
             HStack(alignment: .top, spacing: 18) { appCard; domainsCard }
             Text(model.notice).font(.system(size: 12)).foregroundStyle(.secondary).padding(.top, -3)
             Text("Selected apps are managed while StudyGuard is open. Safari, Chrome, Edge, and Brave stay open; only tabs matching your blocked-site list are closed. Other browsers stay open if tab closing isn’t supported.")
@@ -292,6 +381,32 @@ struct MainView: View {
                 .padding(13).frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.white.opacity(0.65), in: RoundedRectangle(cornerRadius: 12))
         }
+    }
+
+    private var statsCard: some View {
+        HStack(spacing: 0) {
+            statItem("FOCUS TIME TODAY", value: Self.durationLabel(model.todayFocusSeconds), icon: "sun.max")
+            Divider().frame(height: 42).padding(.horizontal, 18)
+            statItem("TOTAL FOCUS TIME", value: Self.durationLabel(model.totalFocusSeconds), icon: "chart.bar")
+            Divider().frame(height: 42).padding(.horizontal, 18)
+            statItem("SESSIONS STARTED", value: "\(model.completedSessions)", icon: "checkmark.circle")
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white, in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    private func statItem(_ title: String, value: String, icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Label(title, systemImage: icon).font(.system(size: 9, weight: .bold)).tracking(0.4).foregroundStyle(.secondary)
+            Text(value).font(.system(size: 20, weight: .semibold, design: .rounded)).monospacedDigit()
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private static func durationLabel(_ seconds: Int) -> String {
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        if hours > 0 { return "\(hours)h \(minutes)m" }
+        return "\(minutes)m"
     }
 
     private var timerCard: some View {
@@ -389,6 +504,48 @@ struct MainView: View {
             Button { showBrowser = true } label: { Label("Open Study Browser", systemImage: "arrow.up.right.square").font(.system(size: 13, weight: .semibold)).padding(.vertical, 3) }.buttonStyle(.borderedProminent).tint(Color(red: 0.18, green: 0.37, blue: 0.33))
             Text("Study Browser is separate from Safari, Chrome, and other browsers. It does not replace or control them.").font(.system(size: 11)).foregroundStyle(.secondary)
         }
+    }
+}
+
+struct SettingsView: View {
+    @ObservedObject var model: FocusModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Settings").font(.system(size: 22, weight: .bold, design: .rounded))
+                    Text("StudyGuard \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button { dismiss() } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 19)).foregroundStyle(.tertiary) }.buttonStyle(.plain)
+            }
+            Divider()
+            VStack(alignment: .leading, spacing: 8) {
+                Label("App updates", systemImage: "arrow.down.circle").font(.system(size: 14, weight: .semibold))
+                Text("Check GitHub for a newer version. If one is available, StudyGuard opens its release page so you can download and install it.")
+                    .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    Button { model.checkForUpdates() } label: {
+                        if model.isCheckingForUpdates { ProgressView().controlSize(.small).padding(.trailing, 5) }
+                        Label("Check for updates", systemImage: "arrow.clockwise")
+                    }.disabled(model.isCheckingForUpdates).buttonStyle(.borderedProminent).tint(Color(red: 0.18, green: 0.37, blue: 0.33))
+                    if model.updateAvailable {
+                        Button("Download update") { model.openLatestRelease() }.buttonStyle(.bordered)
+                    }
+                }
+                Text(model.updateMessage).font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            Divider()
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Your focus history", systemImage: "chart.bar.xaxis").font(.system(size: 14, weight: .semibold))
+                Text("StudyGuard tracks your focus-session time and sessions started on this Mac. This data stays on your device.")
+                    .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }.padding(24).background(Color(red: 0.97, green: 0.965, blue: 0.945))
     }
 }
 
