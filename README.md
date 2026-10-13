@@ -27,3 +27,7 @@ FocusGuard asks for your Mac administrator password only when enabling or removi
 ## Build from source
 
 Developers can find the source app and local build instructions in [FocusGuard/README.md](FocusGuard/README.md).
+
+## StudyGuard
+
+[StudyGuard](StudyGuard/README.md) is a separate macOS focus timer with a study browser that closes distracting tabs while keeping the rest of the browser open. Download its [DMG and source ZIP from the v1.0.1 release](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.0.1).
