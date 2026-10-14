@@ -21,7 +21,10 @@ class OllamaFixture(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == '/api/tags':
-            self.send_json({'models': [{'name': 'test-model'}]})
+            self.send_json({'models': [
+                {'name': 'test-model'},
+                {'name': 'hosted-model:latest-cloud', 'remote_host': 'https://ollama.com', 'remote_model': 'hosted-model'},
+            ]})
         else:
             self.send_json({'error': 'unknown endpoint'}, 404)
 

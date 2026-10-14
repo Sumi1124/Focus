@@ -4,6 +4,18 @@ import Foundation
 import PDFKit
 import UniformTypeIdentifiers
 
+private struct OllamaInstalledModel: Decodable {
+    var name: String
+    var remote_host: String?
+    var remote_model: String?
+    var isLocal: Bool {
+        (remote_host?.isEmpty ?? true) && (remote_model?.isEmpty ?? true)
+            && !name.lowercased().hasSuffix("-cloud") && !name.lowercased().hasSuffix(":cloud")
+    }
+}
+
+private struct OllamaModelList: Decodable { var models: [OllamaInstalledModel] }
+
 @MainActor
 final class NotebookModel: ObservableObject {
     @Published private(set) var notebooks: [StudyNotebook] = []
@@ -196,11 +208,9 @@ final class NotebookModel: ObservableObject {
                 let (data, response) = try await URLSession.shared.data(for: request)
                 try Task.checkCancellation()
                 guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw NotebookError.message("Ollama did not return its model list.") }
-                struct Model: Decodable { var name: String }
-                struct Result: Decodable { var models: [Model] }
-                self.availableModels = try JSONDecoder().decode(Result.self, from: data).models.map(\.name).sorted()
+                self.availableModels = try JSONDecoder().decode(OllamaModelList.self, from: data).models.filter(\.isLocal).map(\.name).sorted()
                 if !self.availableModels.contains(where: { $0 == self.modelName || $0 == self.modelName + ":latest" }), let first = self.availableModels.first { self.modelName = first }
-                self.status = self.availableModels.isEmpty ? "Ollama is running. Download a model to begin." : "Ollama connected. \(self.availableModels.count) local model(s) available."
+                self.status = self.availableModels.isEmpty ? "Ollama is running. Download a local model to begin. Hosted models are not supported." : "Ollama connected. \(self.availableModels.count) local model(s) available."
             } catch is CancellationError { self.status = "Cancelled." }
             catch {
                 if Task.isCancelled { self.status = "Cancelled." }
@@ -248,6 +258,19 @@ final class NotebookModel: ObservableObject {
             guard let self else { return }
             defer { self.finishWork() }
             do {
+                // Ollama can expose hosted models through its local API. Verify the
+                // selected model before sending any source text to that API.
+                let tagsRequest = URLRequest(url: URL(string: "http://127.0.0.1:11434/api/tags")!, timeoutInterval: 8)
+                let (tagsData, tagsResponse) = try await URLSession.shared.data(for: tagsRequest)
+                try Task.checkCancellation()
+                guard (tagsResponse as? HTTPURLResponse)?.statusCode == 200 else { throw NotebookError.message("Could not check the installed local models.") }
+                let installed = try JSONDecoder().decode(OllamaModelList.self, from: tagsData).models
+                guard let selectedModel = installed.first(where: { $0.name == name || $0.name == name + ":latest" }) else {
+                    throw NotebookError.message("Download the selected local model in Ollama, then choose Check connection.")
+                }
+                guard selectedModel.isLocal else {
+                    throw NotebookError.message("Choose a downloaded local model. Hosted Ollama models are not supported in Study Notebook.")
+                }
                 var request = URLRequest(url: URL(string: "http://127.0.0.1:11434/api/chat")!, timeoutInterval: 240)
                 request.httpMethod = "POST"
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")

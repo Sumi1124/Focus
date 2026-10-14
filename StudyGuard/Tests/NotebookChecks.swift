@@ -134,6 +134,10 @@ struct NotebookChecks {
         ai.cancel()
         try await waitForWork(ai)
         expect(!ai.isWorking && ai.error.isEmpty && ai.selected!.messages.count == messagesBeforeCancel + 1, "Cancelled AI request saved an unwanted answer or showed a connection error")
+        ai.modelName = "hosted-model:latest-cloud"
+        ai.ask("This source must stay local")
+        try await waitForWork(ai)
+        expect(ai.error.contains("local model") && ai.selected!.messages.last?.role == "user", "Hosted model was allowed to receive source material")
         print("PASS: local model discovery, cited chat, all study tools, HTTP failures, cancellation, and output persistence")
     }
 

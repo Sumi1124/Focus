@@ -1,4 +1,4 @@
-# StudyGuard 1.5.0 — Study Notebook
+# StudyGuard 1.5.1 — Study Notebook
 
 - Adds a Study Notebook section to the sidebar, inspired by SourceDesk.
 - Collect PDF, TXT, Markdown, RTF, website, and pasted-text sources in multiple local notebooks.
@@ -7,10 +7,15 @@
 - Export notebooks to readable JSON backups, including sources, notes, chat, and study tools.
 - Preserves selected timer settings and running focus/break sessions across app restarts. The countdown uses its original end time; sessions that finish while closed are recorded once on reopening.
 - Shows a link to the running timer inside Study Notebook.
+- Lists only downloaded local Ollama models and verifies the selected model before sending source text. Hosted Ollama models are not supported.
 
 Sources and notes work without a model. For AI tools, install and open Ollama, download a model such as `llama3.2`, then choose Check connection in Study Notebook. AI uses selected excerpts and may make mistakes; inspect the citations as you study.
 
 Requires macOS 13 or newer on Apple silicon or Intel. Download the DMG, quit StudyGuard, and replace the app in Applications. This release is locally signed and is not Apple-notarized. Its DMG is a manual download; the Sparkle in-app feed still serves the previous signed release until the signing Mac publishes a new signed archive.
+
+# StudyGuard 1.5.0 — Study Notebook
+
+Introduces the Study Notebook sidebar, source imports, saved notes, cited Ollama chat, summaries, key points, quizzes, flashcards, JSON export, and timer restoration across app restarts. Version 1.5.1 additionally verifies local-model selection before submitting source material.
 
 # StudyGuard 1.4.0 — Dark mode
 

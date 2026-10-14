@@ -8,7 +8,7 @@ Version 1.3.0 adds in-app updates using Sparkle. Install this version once, then
 
 Version 1.4.0 adds dark mode. Choose System, Light, or Dark in Settings; your preference is saved. The charcoal palette covers every app screen and sheet. System follows your Mac’s appearance.
 
-Version 1.5.0 adds Study Notebook to the sidebar, with SourceDesk-inspired source collection, saved notes, source-based AI chat, summaries, key points, quizzes, and flashcards. Focus and break timers also survive quitting and reopening the app.
+Version 1.5 adds Study Notebook to the sidebar, with SourceDesk-inspired source collection, saved notes, source-based AI chat, summaries, key points, quizzes, and flashcards. Focus and break timers also survive quitting and reopening the app. Version 1.5.1 verifies that the chosen Ollama model runs locally before sending source excerpts.
 
 ## What it does
 
@@ -28,7 +28,7 @@ Version 1.5.0 adds Study Notebook to the sidebar, with SourceDesk-inspired sourc
 
 Choose **Study Notebook** in the sidebar. Use the notebook menu to create or rename a notebook. Add sources with **Add source**, then use **Chat**, **Notes**, or **Study tools**. The focus timer keeps running while you study in the notebook, and its countdown links back to Session.
 
-For AI tools, install and open [Ollama](https://ollama.com/download/mac), download a model (for example, `ollama pull llama3.2`), and choose **Check connection**. Pick an installed model or enter its name. AI requests go only to Ollama on this Mac at `127.0.0.1:11434`; there is no cloud AI provider or API key in this version. Website imports contact the URL you add.
+For AI tools, install and open [Ollama](https://ollama.com/download/mac), download a local model (for example, `ollama pull llama3.2`), and choose **Check connection**. Pick an installed model or enter its name. AI requests go only to Ollama on this Mac at `127.0.0.1:11434`; hosted Ollama models are excluded and rejected before source text is sent. There is no cloud AI provider or API key in this version. Website imports contact the URL you add.
 
 Notebook data is stored in `~/Library/Application Support/com.studyguard.mac/notebooks.json`, with atomic writes. **Export notebook** creates a readable JSON backup containing sources, notes, conversations, and study materials. The AI works from selected excerpts, rather than every word in long documents. Check citations; AI answers and generated quiz answers can contain mistakes. Documents are limited to 20 MB, websites to 2 MB, and source text to 500,000 characters. Scanned PDFs need readable text from an OCR tool; websites that require JavaScript or login may need pasted text.
 
@@ -50,7 +50,7 @@ Focus history, session topics, and goals stay on your Mac. The updater contacts 
 
 ## GitHub release
 
-Download the DMG and standalone source archive from [StudyGuard v1.5.0](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.5.0).
+Download the DMG and standalone source archive from [StudyGuard v1.5.1](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.5.1).
 
 The GitHub Actions StudyGuard workflow checks notebook and timer behavior, compiles both Mac architectures, and publishes the DMG, source archive, and checksums. This release is installed manually by downloading the DMG and replacing the app in Applications. Sparkle's in-app update feed requires the private key on the signing Mac; the CI release does not change that feed or replace its public key.
 
