@@ -46,9 +46,11 @@ int main(int argc, const char *argv[]) {
                     NSCAssert(item.informationOnlyUpdate && item.fileURL == nil, @"Announcement must use Sparkle's supported informational mode");
                     NSCAssert([item.infoURL.absoluteString isEqualToString:[NSString stringWithFormat:@"https://github.com/Sumi1124/Focus/releases/tag/studyguard-v%@", version]], @"Learn More must open the published release");
                 }
-            } else {
+            } else if (dictionary[@"enclosure"] != nil) {
                 NSCAssert(!item.informationOnlyUpdate && item.fileURL != nil, @"Existing signed installation updates must remain available");
                 NSCAssert([dictionary[@"enclosure"][@"sparkle:edSignature"] length] > 0, @"Existing update signature was removed");
+            } else {
+                NSCAssert(item.informationOnlyUpdate && item.infoURL != nil, @"Older manual-download announcements must remain valid");
             }
             index++;
         }
