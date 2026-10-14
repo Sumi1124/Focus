@@ -1,0 +1,31 @@
+# StudyGuard 1.2.0
+
+- Implements the paper-and-ink Penpot design in the native SwiftUI app.
+- Adds the bookmarked-page icon to the Dock, Finder, and sidebar.
+- Bundles Libre Baskerville, IBM Plex Sans, and IBM Plex Mono with their licenses.
+- Session screen has a large timer, Focus/Break switch, duration presets, study topic, and start/end button.
+- Daily focus goal and totals appear alongside the timer; Edit goal opens a native sheet.
+- History shows real local totals, the last seven days, and the eight most recent sessions.
+- Distractions has scrollable app and domain lists with add/remove controls.
+- Settings keeps the GitHub update check and download link.
+- Study Browser adopts the same styling and shows the blocked-page message when a navigation is denied.
+- Removing every blocked domain now stays saved after restarting.
+
+Requires macOS 13 or newer on Apple silicon or Intel. Existing local history, selected apps, sites, and goals are retained. This build is locally signed and is not notarized.
+
+Both architectures were compiled and the universal DMG was created. Runtime UI interactions were not tested in this request.
+
+# StudyGuard 1.1.0
+
+StudyGuard 1.1.0 adds a clearer study routine and a view of your progress.
+
+- Give each focus session a topic, such as biology revision.
+- Set a daily focus goal and see how close you are to it.
+- Review a seven-day focus chart and your eight most recent sessions.
+- Rest with a 5, 10, or 15 minute break timer. App and browser controls pause during breaks; Study Browser keeps its own site list.
+- Goals, topics, and focus history are stored on your Mac. Existing focus totals are kept when you update.
+- The GitHub update checker looks for StudyGuard releases in this repository.
+
+Download the universal DMG, open it, and drag StudyGuard to Applications. Requires macOS 13 or newer on Apple silicon or Intel. This build is not Developer ID signed or notarized; the first launch may require Control-click → Open.
+
+Session history begins with this version. Regular quits and Mac sleep save the current session. Unexpected crashes may leave the latest session out of the recent list, although focus time is saved while you study.

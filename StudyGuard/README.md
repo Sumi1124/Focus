@@ -1,6 +1,8 @@
 # StudyGuard for macOS
 
-StudyGuard is a small study timer with a gentle app focus guard and a separate study browser.
+StudyGuard is a macOS study timer with app and tab controls and a separate study browser.
+
+Version 1.2.0 implements the paper-and-ink Penpot design: a large timer, simple navigation, History rows and charts, separate Distractions and Settings sheets, and a custom bookmarked-page app icon. Libre Baskerville and IBM Plex fonts are bundled under their SIL Open Font Licenses in `Assets/Fonts`.
 
 ## What it does
 
@@ -8,7 +10,7 @@ StudyGuard is a small study timer with a gentle app focus guard and a separate s
 - During a session, selected Safari, Chrome, Edge, and Brave apps stay open; only tabs matching your blocked-site list are closed. Other selected apps receive a graceful quit request.
 - A built-in browser blocks domains on your list. YouTube and Instagram are included by default.
 - A personal focus dashboard tracks focus time today, all-time focus time, and sessions started. The history stays on your Mac.
-- Name each focus session, set a daily goal, and review a seven-day chart and your last eight sessions in Your Progress.
+- Name each focus session, edit the daily goal beside the timer, and review a seven-day chart and your last eight sessions in History.
 - Take a 5, 10, or 15 minute break with app and browser controls paused. Study Browser continues to use its site list.
 - Settings includes a GitHub update check and opens the release page when a newer version is available.
 - Your app list and blocked domains are stored locally in your Mac user account.
@@ -31,6 +33,6 @@ Focus history, session topics, and goals stay on your Mac. Settings contacts Git
 
 ## GitHub release
 
-Download the DMG and standalone source archive from [StudyGuard v1.1.0](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.1.0).
+Download the DMG and standalone source archive from [StudyGuard v1.2.0](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.2.0).
 
 Recent session history starts with version 1.1.0; previously recorded total focus time remains available. Regular quits and Mac sleep save an active session.
