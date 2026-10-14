@@ -3,15 +3,42 @@ import CoreText
 import SwiftUI
 import WebKit
 
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case system, light, dark
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+    var colorScheme: ColorScheme? {
+        switch self { case .system: return nil; case .light: return .light; case .dark: return .dark }
+    }
+    var nativeAppearance: NSAppearance? {
+        switch self {
+        case .system: return nil
+        case .light: return NSAppearance(named: .aqua)
+        case .dark: return NSAppearance(named: .darkAqua)
+        }
+    }
+}
+
 enum Ink {
-    static let paper = Color(hex: 0xFAF8F3)
-    static let rail = Color(hex: 0xF0ECE3)
-    static let text = Color(hex: 0x27262B)
-    static let muted = Color(hex: 0x77736C)
-    static let line = Color(hex: 0xDCD7CC)
-    static let blue = Color(hex: 0x3E4E9B)
-    static let rust = Color(hex: 0xC56B3B)
-    static let selected = Color(hex: 0xE7E9F2)
+    // Dynamic AppKit colors also adapt native controls and sheets to the chosen appearance.
+    static let paper = adaptive(light: 0xFAF8F3, dark: 0x1A1B1E)
+    static let rail = adaptive(light: 0xF0ECE3, dark: 0x202125)
+    static let text = adaptive(light: 0x27262B, dark: 0xEEEAE2)
+    static let muted = adaptive(light: 0x77736C, dark: 0xACA8A2)
+    static let line = adaptive(light: 0xDCD7CC, dark: 0x3B3D43)
+    static let blue = adaptive(light: 0x3E4E9B, dark: 0xA8B7FF)
+    static let button = adaptive(light: 0x3E4E9B, dark: 0x5262B0)
+    static let rust = adaptive(light: 0xC56B3B, dark: 0xE69B70)
+    static let selected = adaptive(light: 0xE7E9F2, dark: 0x2E354B)
+    static let field = adaptive(light: 0xFFFFFF, dark: 0x242529)
+    private static func adaptive(light: UInt32, dark: UInt32) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let value = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+            return NSColor(srgbRed: Double((value >> 16) & 255) / 255,
+                           green: Double((value >> 8) & 255) / 255,
+                           blue: Double(value & 255) / 255, alpha: 1)
+        })
+    }
     static func sans(_ size: CGFloat = 14, _ weight: Font.Weight = .regular) -> Font {
         .custom("IBMPlexSans-Regular", size: size).weight(weight)
     }
@@ -53,7 +80,7 @@ struct InkButtonStyle: ButtonStyle {
         configuration.label.font(Ink.sans(14, .medium))
             .foregroundStyle(primary ? Color.white : Ink.text)
             .padding(.horizontal, 16).frame(minHeight: 40)
-            .background(primary ? Ink.blue : Ink.rail, in: RoundedRectangle(cornerRadius: 5))
+            .background(primary ? Ink.button : Ink.rail, in: RoundedRectangle(cornerRadius: 5))
             .opacity(configuration.isPressed ? 0.75 : 1)
     }
 }
@@ -71,11 +98,15 @@ struct InkLink: View {
 struct StudyGuardApp: App {
     @StateObject private var model = FocusModel()
     @StateObject private var updater = AppUpdater()
+    @AppStorage("studyguard.appearance") private var appearance = AppAppearance.system.rawValue
+    private var selectedAppearance: AppAppearance { AppAppearance(rawValue: appearance) ?? .system }
     init() { Ink.registerFonts() }
     var body: some Scene {
         WindowGroup {
             MainView(model: model, updater: updater).frame(minWidth: 1000, minHeight: 740)
-                .preferredColorScheme(.light)
+                .preferredColorScheme(selectedAppearance.colorScheme)
+                .onAppear { NSApp.appearance = selectedAppearance.nativeAppearance }
+                .onChange(of: appearance) { _ in NSApp.appearance = selectedAppearance.nativeAppearance }
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1152, height: 800)
@@ -91,6 +122,8 @@ struct StudyGuardApp: App {
 struct MainView: View {
     @ObservedObject var model: FocusModel
     @ObservedObject var updater: AppUpdater
+    @AppStorage("studyguard.appearance") private var appearance = AppAppearance.system.rawValue
+    private var preferredScheme: ColorScheme? { (AppAppearance(rawValue: appearance) ?? .system).colorScheme }
     @State private var showBrowser = false
     @State private var showSettings = false
     @State private var showDistractions = false
@@ -111,10 +144,10 @@ struct MainView: View {
         }
         .font(Ink.sans()).foregroundStyle(Ink.text).background(Ink.paper)
         .ignoresSafeArea(.container, edges: .top)
-        .sheet(isPresented: $showSettings) { SettingsView(model: model, updater: updater) }
-        .sheet(isPresented: $showDistractions) { DistractionsView(model: model) }
-        .sheet(isPresented: $showGoal) { GoalView(model: model) }
-        .sheet(isPresented: $showBrowser) { StudyBrowser(model: model).frame(minWidth: 800, minHeight: 600) }
+        .sheet(isPresented: $showSettings) { SettingsView(model: model, updater: updater).preferredColorScheme(preferredScheme) }
+        .sheet(isPresented: $showDistractions) { DistractionsView(model: model).preferredColorScheme(preferredScheme) }
+        .sheet(isPresented: $showGoal) { GoalView(model: model).preferredColorScheme(preferredScheme) }
+        .sheet(isPresented: $showBrowser) { StudyBrowser(model: model).frame(minWidth: 800, minHeight: 600).preferredColorScheme(preferredScheme) }
     }
 
     private var sidebar: some View {
@@ -227,7 +260,7 @@ struct MainView: View {
             } else {
                 Text("Working on").font(Ink.sans(12, .medium)).foregroundStyle(Ink.muted).padding(.top, 30)
                 TextField("Study topic", text: $model.subject).textFieldStyle(.plain).font(Ink.sans(15))
-                    .padding(.horizontal, 14).frame(height: 44).background(.white, in: RoundedRectangle(cornerRadius: 4))
+                    .padding(.horizontal, 14).frame(height: 44).background(Ink.field, in: RoundedRectangle(cornerRadius: 4))
                     .disabled(model.isRunning).padding(.top, 10)
                     .onChange(of: model.subject) { value in
                         if value.count > 100 { model.subject = String(value.prefix(100)) }
@@ -414,7 +447,7 @@ struct MainView: View {
                     .font(Ink.sans()).foregroundStyle(Ink.muted).multilineTextAlignment(.center)
                 Spacer()
                 Text("BROWSER PREVIEW").font(Ink.mono(10)).foregroundStyle(Ink.muted).padding(.bottom, 32)
-            }.padding(.horizontal, 24).frame(height: 248).frame(maxWidth: .infinity).background(.white)
+            }.padding(.horizontal, 24).frame(height: 248).frame(maxWidth: .infinity).background(Ink.field)
         }.clipShape(RoundedRectangle(cornerRadius: 5))
     }
 }
@@ -435,13 +468,23 @@ struct SheetHeading: View {
 struct SettingsView: View {
     @ObservedObject var model: FocusModel
     @ObservedObject var updater: AppUpdater
+    @AppStorage("studyguard.appearance") private var appearance = AppAppearance.system.rawValue
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SheetHeading(title: "Settings") { dismiss() }
-            Text("StudyGuard \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.0")")
+            Text("StudyGuard \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.4.0")")
                 .font(Ink.mono(12)).foregroundStyle(Ink.muted).padding(.top, 18)
             InkRule().padding(.vertical, 25)
+            Text("Appearance").font(Ink.sans(16, .medium))
+            Picker("Appearance", selection: $appearance) {
+                ForEach(AppAppearance.allCases) { choice in
+                    Text(choice.title).tag(choice.rawValue)
+                }
+            }.pickerStyle(.segmented).padding(.top, 16)
+            Text("System follows your Mac. Light and Dark stay as you choose.")
+                .font(Ink.sans(12)).foregroundStyle(Ink.muted).padding(.top, 12)
+            InkRule().padding(.vertical, 24)
             Text("Updates").font(Ink.sans(16, .medium))
             Text("Download and install new versions inside StudyGuard.")
                 .foregroundStyle(Ink.muted).padding(.top, 14)
@@ -461,7 +504,7 @@ struct SettingsView: View {
             Text("Goals and history are stored on this Mac.").font(Ink.sans(13)).foregroundStyle(Ink.muted)
             Spacer(minLength: 20)
             HStack { Spacer(); Button("Done") { dismiss() }.buttonStyle(InkButtonStyle()).keyboardShortcut(.cancelAction) }
-        }.padding(28).frame(width: 560, height: 500).font(Ink.sans()).foregroundStyle(Ink.text).background(Ink.paper)
+        }.padding(28).frame(width: 560, height: 630).font(Ink.sans()).foregroundStyle(Ink.text).background(Ink.paper)
     }
 }
 
@@ -515,7 +558,7 @@ struct DistractionsView: View {
                     }.frame(height: 148)
                     HStack(spacing: 10) {
                         TextField("example.com", text: $model.newDomain).textFieldStyle(.plain).font(Ink.mono(13))
-                            .padding(.horizontal, 12).frame(height: 40).background(.white, in: RoundedRectangle(cornerRadius: 4))
+                            .padding(.horizontal, 12).frame(height: 40).background(Ink.field, in: RoundedRectangle(cornerRadius: 4))
                             .onSubmit { model.addDomain() }
                         Button { model.addDomain() } label: { Text("+") }
                             .buttonStyle(InkButtonStyle()).accessibilityLabel("Add blocked domain")
@@ -566,7 +609,7 @@ struct StudyBrowser: View {
                 Button { webView.goForward() } label: { Image(systemName: "chevron.right") }.disabled(!webView.canGoForward)
                     .accessibilityLabel("Forward")
                 TextField("Enter a website", text: $address).font(Ink.mono(13)).textFieldStyle(.plain)
-                    .padding(10).background(.white, in: RoundedRectangle(cornerRadius: 4)).onSubmit(load)
+                    .padding(10).background(Ink.field, in: RoundedRectangle(cornerRadius: 4)).onSubmit(load)
                 Button(action: load) { Image(systemName: "arrow.clockwise") }.accessibilityLabel("Load address")
                 Button { dismiss() } label: { Image(systemName: "xmark") }.keyboardShortcut(.cancelAction)
                     .accessibilityLabel("Close study browser")

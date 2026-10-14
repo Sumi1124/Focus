@@ -30,4 +30,6 @@ Developers can find the source app and local build instructions in [FocusGuard/R
 
 ## StudyGuard
 
-[StudyGuard](StudyGuard/README.md) is a separate macOS focus timer with a study browser that closes distracting tabs while keeping the rest of the browser open. Download its [DMG and source ZIP from the v1.3.0 release](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.3.0).
+[StudyGuard](StudyGuard/README.md) is a separate macOS focus timer with a study browser that closes distracting tabs while keeping the rest of the browser open. Download its [DMG and source ZIP from the v1.4.0 release](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.4.0).
+
+StudyGuard 1.4.0 adds System, Light, and Dark appearance choices in Settings, with a saved preference and a charcoal palette throughout the app.

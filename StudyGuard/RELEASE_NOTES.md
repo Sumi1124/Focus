@@ -1,3 +1,16 @@
+# StudyGuard 1.4.0 — Dark mode
+
+- Adds Light, Dark, and System appearance choices in Settings.
+- System follows your Mac’s current appearance, including scheduled changes.
+- Saves your appearance choice across launches.
+- Adds a charcoal palette with warm text, softer dividers, and brighter blue and rust accents.
+- Applies the appearance to the timer, History, Settings, Distractions, daily goal, and Study Browser controls.
+- Keeps focus history, goals, app/site lists, and the in-app updater.
+
+From an installed copy of 1.3.0, finish your session, then choose Settings → Check for updates → Install and Relaunch. You can also download the DMG and drag StudyGuard into Applications using Finder. Quit older copies and launch the Applications copy.
+
+Requires macOS 13 or newer on Apple silicon or Intel. The update archive is signed with StudyGuard’s update key. The app itself is locally signed and is not Apple-notarized. Both architectures are compiled; runtime appearance and the install/relaunch lifecycle have not been tested.
+
 # StudyGuard 1.3.0
 
 - Adds Sparkle-powered in-app download, installation, and relaunch from Settings → Check for updates.

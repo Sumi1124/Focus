@@ -6,6 +6,8 @@ Version 1.2.0 implements the paper-and-ink Penpot design: a large timer, simple 
 
 Version 1.3.0 adds in-app updates using Sparkle. Install this version once, then use Settings → Check for updates and follow the Install and Relaunch window for future versions. Automatic checks are optional. Updates are signed and verified before extraction; history and settings remain local.
 
+Version 1.4.0 adds dark mode. Choose System, Light, or Dark in Settings; your preference is saved. The charcoal palette covers every app screen and sheet. System follows your Mac’s appearance.
+
 ## What it does
 
 - Focus sessions for 25, 50, or 90 minutes.
@@ -35,6 +37,6 @@ Focus history, session topics, and goals stay on your Mac. The updater contacts 
 
 ## GitHub release
 
-Download the DMG and standalone source archive from [StudyGuard v1.3.0](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.3.0).
+Download the DMG and standalone source archive from [StudyGuard v1.4.0](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.4.0).
 
 Recent session history starts with version 1.1.0; previously recorded total focus time remains available. Regular quits and Mac sleep save an active session.
