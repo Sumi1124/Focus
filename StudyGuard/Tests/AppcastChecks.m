@@ -34,15 +34,17 @@ int main(int argc, const char *argv[]) {
             SUAppcastItem *item = [[SUAppcastItem alloc] initWithDictionary:dictionary failureReason:&failure];
             NSCAssert(item != nil, @"Sparkle rejected the feed item: %@", failure);
             if (index == 0) {
-                NSCAssert([item.versionString isEqualToString:@"151"], @"Latest announced build must be 151");
+                NSCAssert(item.versionString.integerValue >= 151, @"The latest announcement must cover Study Notebook or newer");
+                NSString *version = dictionary[@"sparkle:shortVersionString"];
+                NSCAssert(version.length > 0, @"The update must have a visible version");
                 if (dictionary[@"enclosure"] != nil) {
                     NSCAssert(!item.informationOnlyUpdate, @"A signed archive must support in-app installation");
-                    NSCAssert([item.fileURL.absoluteString isEqualToString:@"https://github.com/Sumi1124/Focus/releases/download/studyguard-v1.5.1/StudyGuard-1.5.1-macOS-universal.dmg"], @"The installer must use the exact published DMG");
+                    NSCAssert([item.fileURL.absoluteString isEqualToString:[NSString stringWithFormat:@"https://github.com/Sumi1124/Focus/releases/download/studyguard-v%@/StudyGuard-%@-macOS-universal.dmg", version, version]], @"The installer must use the exact published DMG");
                     NSData *signature = [[NSData alloc] initWithBase64EncodedString:dictionary[@"enclosure"][@"sparkle:edSignature"] options:0];
                     NSCAssert(signature.length == 64, @"The signed update must contain an Ed25519 signature");
                 } else {
                     NSCAssert(item.informationOnlyUpdate && item.fileURL == nil, @"Announcement must use Sparkle's supported informational mode");
-                    NSCAssert([item.infoURL.absoluteString isEqualToString:@"https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.5.1"], @"Learn More must open the published release");
+                    NSCAssert([item.infoURL.absoluteString isEqualToString:[NSString stringWithFormat:@"https://github.com/Sumi1124/Focus/releases/tag/studyguard-v%@", version]], @"Learn More must open the published release");
                 }
             } else {
                 NSCAssert(!item.informationOnlyUpdate && item.fileURL != nil, @"Existing signed installation updates must remain available");
@@ -50,7 +52,7 @@ int main(int argc, const char *argv[]) {
             }
             index++;
         }
-        puts("PASS: Sparkle recognizes the 1.5.1 update mode and retains signed older updates");
+        puts("PASS: Sparkle recognizes the latest update mode and retains signed older updates");
     }
     return 0;
 }

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Run on the Mac that owns StudyGuard's existing update-signing key.
-# This signs the exact published 1.5.1 DMG and prints only public update metadata.
+# This signs the exact published 1.6.0 DMG and prints only public update metadata.
 set -euo pipefail
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
@@ -11,10 +11,10 @@ fi
 task_dir="$(mktemp -d "${TMPDIR:-/tmp}/studyguard-sign.XXXXXX")"
 trap 'rm -rf "$task_dir"' EXIT
 
-version="1.5.1"
-build_number="151"
+version="1.6.0"
+build_number="160"
 dmg_name="StudyGuard-$version-macOS-universal.dmg"
-dmg_sha="3741a7ed813c06cb2e211960ff8bd8eeb476b349db71a384369a80879ad8caf7"
+dmg_sha="304d955aacaca081f9ce6b6eb0885686a23422fdea270dd508be4b565c6cb9cc"
 public_key="Kqe9ZKzDzE54X6wzf1WWeQU7H7dAEbreX50EvJDcHro="
 sparkle_version="2.10.0"
 sparkle_sha="c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c"

@@ -3,6 +3,19 @@
     <channel>
         <title>StudyGuard</title>
         <item>
+            <title>1.6.0 — Groq API settings</title>
+            <pubDate>Thu, 15 Oct 2026 08:04:45 +0900</pubDate>
+            <link>https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.6.0</link>
+            <sparkle:version>160</sparkle:version>
+            <sparkle:shortVersionString>1.6.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>StudyGuard 1.6.0 — Groq API settings</h2>
+<p>Study Notebook now has an AI provider selector and a Groq API key field. Choose AI Settings → Groq (cloud), paste your key, choose Save key, then Check connection. Keys are stored in your Mac's Keychain. A free Groq account has usage limits; no local model installation is required.</p>
+<p>Before sending source excerpts and recent chat to Groq, StudyGuard asks for permission for each notebook. Timers, notes, and sources remain saved across launches.</p>
+<p>Choose Learn More to download this release. In-app installation becomes available after this archive is signed with the existing update key.</p>
+]]></description>
+        </item>
+        <item>
             <title>1.5.1 — Study Notebook</title>
             <pubDate>Wed, 14 Oct 2026 21:05:02 +0900</pubDate>
             <link>https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.5.1</link>
