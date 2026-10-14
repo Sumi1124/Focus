@@ -12,6 +12,8 @@ The feed announces 1.5.1 using Sparkle's supported informational update format: 
 
 The signing key is not available in GitHub Actions, so 1.5.1 is not offered for automatic download/install/relaunch. Existing signed 1.4.0 and 1.3.0 feed entries and the public key are retained. On the signing Mac, sign the exact published 1.5.1 DMG and replace its informational entry with the generated signed enclosure to enable in-app installation. Do not rebuild the archive between signing and publication.
 
+On the Mac that signed 1.4, run `bash Scripts/sign-published-update.sh`. The helper downloads the exact published 1.5.1 archive, verifies its SHA-256, uses the existing `com.studyguard.mac` Keychain account through Sparkle's pinned signing tool, and verifies the signature against the public key already trusted by 1.4. It prints public JSON metadata for publishing the signed enclosure. It does not export the private key or change the archive or feed.
+
 ## Publishing the next version
 
 1. Increment both the visible version and build number in `BuildConfig.sh`.

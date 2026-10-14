@@ -2,7 +2,7 @@ name: Build and release StudyGuard
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex/studyguard-signed-update]
     paths:
       - 'StudyGuard/**'
       - '.github/workflows/studyguard-release.yml'
@@ -53,6 +53,33 @@ jobs:
             -framework Foundation -framework Sparkle -Wl,-rpath,"$SPARKLE_DIR" \
             Tests/AppcastChecks.m -o work/checks/AppcastChecks
           work/checks/AppcastChecks Updates/appcast.xml
+
+      - name: Verify the published update signature
+        working-directory: StudyGuard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          bash -n Scripts/sign-published-update.sh
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from urllib.parse import urlparse
+          from xml.etree import ElementTree as ET
+          items = ET.parse('Updates/appcast.xml').findall('./channel/item')
+          enclosure = next(item.find('enclosure') for item in items if item.find('enclosure') is not None)
+          parsed = urlparse(enclosure.attrib['url'])
+          parts = parsed.path.strip('/').split('/')
+          assert parsed.scheme == 'https' and parsed.netloc == 'github.com'
+          assert len(parts) == 6 and parts[:4] == ['Sumi1124', 'Focus', 'releases', 'download']
+          assert parts[4].startswith('studyguard-v') and parts[5].endswith('.dmg')
+          Path('work/published-entry.json').write_text(json.dumps({'tag': parts[4], 'name': parts[5]}))
+          PY
+          tag="$(python3 -c 'import json; print(json.load(open("work/published-entry.json"))["tag"])')"
+          dmg_name="$(python3 -c 'import json; print(json.load(open("work/published-entry.json"))["name"])')"
+          gh release download "$tag" --pattern "$dmg_name" --dir work/published-update
+          xcrun swift Scripts/verify-published-update.swift Updates/appcast.xml \
+            Updates/public-ed-key.txt "work/published-update/$dmg_name"
 
       - name: Package source and checksums
         working-directory: StudyGuard
