@@ -52,6 +52,6 @@ Focus history, session topics, and goals stay on your Mac. The updater contacts 
 
 Download the DMG and standalone source archive from [StudyGuard v1.5.1](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.5.1).
 
-The GitHub Actions StudyGuard workflow checks notebook and timer behavior, compiles both Mac architectures, and publishes the DMG, source archive, and checksums. This release is installed manually by downloading the DMG and replacing the app in Applications. Sparkle's in-app update feed requires the private key on the signing Mac; the CI release does not change that feed or replace its public key.
+The GitHub Actions StudyGuard workflow checks notebook and timer behavior, compiles both Mac architectures, and publishes the DMG, source archive, and checksums. In installed copies of 1.4.0, **Check for Updates** announces 1.5.1 and **Learn More…** opens its GitHub download page. Install this release manually by downloading the DMG and replacing the app in Applications. Automatic installation through Sparkle requires the private key on the signing Mac; previous signed feed entries and the public key are retained.
 
 Recent session history starts with version 1.1.0; previously recorded total focus time remains available. Active timers are saved on each tick, quit, and Mac sleep. A timer keeps its original end time while the app is closed; on reopening, a finished focus session is added to history once. App and tab controls run only while StudyGuard is open.

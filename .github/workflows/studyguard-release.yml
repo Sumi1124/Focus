@@ -45,6 +45,15 @@ jobs:
         working-directory: StudyGuard
         run: bash build.sh
 
+      - name: Verify Sparkle update announcement
+        working-directory: StudyGuard
+        run: |
+          SPARKLE_DIR="$(bash Scripts/bootstrap-sparkle.sh)"
+          clang -Wno-deprecated-declarations -F "$SPARKLE_DIR" \
+            -framework Foundation -framework Sparkle -Wl,-rpath,"$SPARKLE_DIR" \
+            Tests/AppcastChecks.m -o work/checks/AppcastChecks
+          work/checks/AppcastChecks Updates/appcast.xml
+
       - name: Package source and checksums
         working-directory: StudyGuard
         run: |

@@ -11,7 +11,7 @@
 
 Sources and notes work without a model. For AI tools, install and open Ollama, download a model such as `llama3.2`, then choose Check connection in Study Notebook. AI uses selected excerpts and may make mistakes; inspect the citations as you study.
 
-Requires macOS 13 or newer on Apple silicon or Intel. Download the DMG, quit StudyGuard, and replace the app in Applications. This release is locally signed and is not Apple-notarized. Its DMG is a manual download; the Sparkle in-app feed still serves the previous signed release until the signing Mac publishes a new signed archive.
+Requires macOS 13 or newer on Apple silicon or Intel. Download the DMG, quit StudyGuard, and replace the app in Applications. This release is locally signed and is not Apple-notarized. Check for Updates in 1.4.0 announces this release with a Learn More link for manual installation. Automatic installation requires the signing Mac to publish a new signed update archive.
 
 # StudyGuard 1.5.0 — Study Notebook
 
