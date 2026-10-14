@@ -6,6 +6,7 @@ struct NotebookView: View {
     @ObservedObject var focusModel: FocusModel
     @State private var tab = 0
     @State private var question = ""
+    @State private var groqKeyDraft = ""
     @State private var showNew = false
     @State private var showRename = false
     @State private var showPaste = false
@@ -150,25 +151,57 @@ struct NotebookView: View {
 
     private var modelConnection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("LOCAL AI").font(Ink.mono(11)).foregroundStyle(Ink.muted)
-            Text("Use Ollama on this Mac for chat and study tools. Your sources stay on this Mac.")
-                .font(Ink.sans(12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
-            TextField("Model name", text: $model.modelName).textFieldStyle(.roundedBorder).disabled(model.isWorking)
-                .accessibilityLabel("Ollama model name")
-            if !model.availableModels.isEmpty {
-                Menu("Choose installed model") {
-                    ForEach(model.availableModels, id: \.self) { name in Button(name) { model.modelName = name } }
-                }.disabled(model.isWorking)
+            Text("AI SETTINGS").font(Ink.mono(11)).foregroundStyle(Ink.muted)
+            Picker("Provider", selection: $model.provider) {
+                ForEach(NotebookProvider.allCases) { provider in Text(provider.title).tag(provider) }
+            }.disabled(model.isWorking)
+                .onChange(of: model.provider) { _ in groqKeyDraft = "" }
+            if model.provider == .groq {
+                Text("Use Groq's free API tier without installing a model. Usage limits apply. Selected excerpts and recent chat are sent to Groq after you allow it for this notebook.")
+                    .font(Ink.sans(12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                SecureField("Groq API key", text: $groqKeyDraft).textFieldStyle(.roundedBorder)
+                    .disabled(model.isWorking).accessibilityLabel("Groq API key")
+                HStack {
+                    Button("Save key") {
+                        if model.saveGroqKey(groqKeyDraft) { groqKeyDraft = "" }
+                    }.disabled(model.isWorking || groqKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    if model.hasGroqKey {
+                        Button("Remove key") { model.removeGroqKey(); groqKeyDraft = "" }.disabled(model.isWorking)
+                    }
+                }.buttonStyle(.bordered)
+                Text(model.hasGroqKey ? "Key saved in your Mac's Keychain." : "No API key saved.")
+                    .font(Ink.sans(11)).foregroundStyle(Ink.muted)
+                Link("Create a free Groq API key ↗", destination: URL(string: "https://console.groq.com/keys")!)
+                    .font(Ink.sans(12))
+                TextField("Groq model", text: $model.groqModelName).textFieldStyle(.roundedBorder).disabled(model.isWorking)
+                    .accessibilityLabel("Groq model name")
+                if !model.availableModels.isEmpty {
+                    Menu("Choose Groq model") {
+                        ForEach(model.availableModels, id: \.self) { name in Button(name) { model.groqModelName = name } }
+                    }.disabled(model.isWorking)
+                }
+                Button("Reset cloud permission") { model.revokeGroqConsent() }.font(Ink.sans(12)).disabled(model.isWorking)
+            } else {
+                Text("Use Ollama on this Mac for chat and study tools. Your sources stay on this Mac.")
+                    .font(Ink.sans(12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                TextField("Model name", text: $model.modelName).textFieldStyle(.roundedBorder).disabled(model.isWorking)
+                    .accessibilityLabel("Ollama model name")
+                if !model.availableModels.isEmpty {
+                    Menu("Choose installed model") {
+                        ForEach(model.availableModels, id: \.self) { name in Button(name) { model.modelName = name } }
+                    }.disabled(model.isWorking)
+                }
+                DisclosureGroup("Set up Ollama") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Link("Download Ollama ↗", destination: URL(string: "https://ollama.com/download/mac")!)
+                        Text("Install and open Ollama, then download a model. For example, run this in Terminal:").font(Ink.sans(12)).foregroundStyle(Ink.muted)
+                        Text("ollama pull llama3.2").font(Ink.mono(11)).textSelection(.enabled)
+                    }.padding(.top, 8)
+                }.font(Ink.sans(12))
             }
-            Button("Check connection") { model.checkConnection() }.buttonStyle(.bordered).disabled(model.isWorking)
-            DisclosureGroup("Set up Ollama") {
-                VStack(alignment: .leading, spacing: 8) {
-                    Link("Download Ollama ↗", destination: URL(string: "https://ollama.com/download/mac")!)
-                    Text("Install and open Ollama, then download a model. For example, run this in Terminal:").font(Ink.sans(12)).foregroundStyle(Ink.muted)
-                    Text("ollama pull llama3.2").font(Ink.mono(11)).textSelection(.enabled)
-                    Text("Sources and notes work without a model.").font(Ink.sans(12)).foregroundStyle(Ink.muted)
-                }.padding(.top, 8)
-            }.font(Ink.sans(12))
+            Button("Check connection") { model.checkConnection() }.buttonStyle(.bordered)
+                .disabled(model.isWorking || (model.provider == .groq && !model.hasGroqKey))
+            Text("Sources and notes work without AI.").font(Ink.sans(12)).foregroundStyle(Ink.muted)
         }
     }
 

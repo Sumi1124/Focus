@@ -139,6 +139,40 @@ struct NotebookChecks {
         try await waitForWork(ai)
         expect(ai.error.contains("local model") && ai.selected!.messages.last?.role == "user", "Hosted model was allowed to receive source material")
         print("PASS: local model discovery, cited chat, all study tools, HTTP failures, cancellation, and output persistence")
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [GroqFixture.self]
+        let cloudSession = URLSession(configuration: configuration)
+        let groq = NotebookModel(defaults: defaults, folder: folder.appendingPathComponent("groq-checks"), session: cloudSession, keychainService: suite + ".groq")
+        defer { groq.removeGroqKey(); cloudSession.invalidateAndCancel() }
+        groq.provider = .groq
+        expect(groq.addText(title: "Biology", text: "Photosynthesis uses light to make sugars."), "Groq source setup failed")
+        expect(!groq.canGenerate, "Groq should require a saved key")
+        expect(groq.saveGroqKey("gsk_test_fixture_key"), "Keychain did not save the isolated test key")
+        expect(groq.hasGroqKey && groq.canGenerate, "Saving the key did not enable Groq")
+        expect(!defaults.dictionaryRepresentation().values.contains(where: { ($0 as? String) == "gsk_test_fixture_key" }), "API key leaked into UserDefaults")
+        defaults.set(true, forKey: "notebook.groqConsent." + groq.selectedID!.uuidString)
+        groq.checkConnection()
+        try await waitForWork(groq)
+        expect(groq.availableModels == ["llama-3.1-8b-instant"], "Groq model discovery failed")
+        groq.ask("How does photosynthesis work?")
+        try await waitForWork(groq)
+        expect(groq.error.isEmpty && groq.selected?.messages.last?.citations.count == 1 && GroqFixture.authenticated, "Groq chat, authentication, or citations failed")
+        for tool in NotebookTool.allCases {
+            groq.generate(tool)
+            try await waitForWork(groq)
+            expect(groq.error.isEmpty && groq.selected?.artifacts.first?.tool == tool, "Groq study tool failed: \(tool.title)")
+        }
+        GroqFixture.rateLimited = true
+        groq.ask("Test usage limit")
+        try await waitForWork(groq)
+        expect(groq.error.contains("usage limit"), "Groq usage limits were not explained")
+        GroqFixture.rateLimited = false
+        groq.revokeGroqConsent()
+        expect(!defaults.bool(forKey: "notebook.groqConsent." + groq.selectedID!.uuidString), "Cloud consent did not reset")
+        groq.removeGroqKey()
+        expect(!groq.hasGroqKey && !groq.canGenerate, "Removing the key did not disable Groq")
+        print("PASS: Groq Keychain storage, authentication, model discovery, chat, all study tools, limits, and consent reset")
     }
 
     static func waitForWork(_ model: NotebookModel) async throws {
@@ -148,4 +182,59 @@ struct NotebookChecks {
         }
         preconditionFailure("Local AI operation did not finish within five seconds")
     }
+}
+
+final class GroqFixture: URLProtocol {
+    static var authenticated = false
+    static var rateLimited = false
+    override class func canInit(with request: URLRequest) -> Bool { request.url?.host == "api.groq.com" }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        let authorized = request.value(forHTTPHeaderField: "Authorization") == "Bearer gsk_test_fixture_key"
+        Self.authenticated = authorized
+        var status = authorized ? 200 : 401
+        var result: [String: Any]
+        if request.url?.path.hasSuffix("/models") == true {
+            result = ["data": [["id": "llama-3.1-8b-instant"]]]
+        } else if Self.rateLimited {
+            status = 429
+            result = ["error": ["message": "Rate limit reached"]]
+        } else {
+            var data = request.httpBody ?? Data()
+            if let stream = request.httpBodyStream {
+                stream.open()
+                defer { stream.close() }
+                var buffer = [UInt8](repeating: 0, count: 4096)
+                while stream.hasBytesAvailable {
+                    let count = stream.read(&buffer, maxLength: buffer.count)
+                    if count <= 0 { break }
+                    data.append(contentsOf: buffer.prefix(count))
+                }
+            }
+            let body = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+            let messages = body["messages"] as? [[String: String]] ?? []
+            guard body["options"] == nil, body["model"] as? String == "llama-3.1-8b-instant",
+                  messages.first?["content"]?.contains("Photosynthesis uses light") == true else {
+                respond(["error": ["message": "Invalid Groq request shape"]], status: 400); return
+            }
+            let prompt = messages.last?["content"] ?? ""
+            let answer: String
+            if prompt.contains("flashcards") {
+                guard body["response_format"] != nil else { respond(["error": ["message": "JSON mode missing"]], status: 400); return }
+                answer = #"{"cards":[{"front":"What powers photosynthesis?","back":"Light","citations":["S1","S99"]}]}"#
+            } else if prompt.contains("multiple-choice") {
+                guard body["response_format"] != nil else { respond(["error": ["message": "JSON mode missing"]], status: 400); return }
+                answer = #"{"questions":[{"question":"What powers photosynthesis?","options":["Light","Sound"],"answerIndex":0,"explanation":"The source says light.","citations":["S1"]}]}"#
+            } else { answer = "Photosynthesis uses light [S1]. Invalid reference [S99]." }
+            result = ["choices": [["message": ["role": "assistant", "content": answer]]]]
+        }
+        respond(result, status: status)
+    }
+    private func respond(_ body: [String: Any], status: Int) {
+        let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: try! JSONSerialization.data(withJSONObject: body))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
 }

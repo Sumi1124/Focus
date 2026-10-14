@@ -1,3 +1,16 @@
+# StudyGuard 1.6.0 — Groq API settings
+
+- Adds an AI provider selector in Study Notebook → AI Settings.
+- Adds a masked Groq API key field with Save key and Remove key controls. Keys are stored in your Mac's Keychain.
+- Supports Groq cloud chat, summaries, key points, quizzes, and flashcards with no local model installation.
+- Checks the API key and lists available Groq models. The default model is llama-3.1-8b-instant; free-tier usage limits apply.
+- Asks before sending selected excerpts, questions, and recent chat to Groq, with permission saved separately for each notebook and a reset control.
+- Keeps local Ollama support and saved timers, sources, notes, and study material.
+
+Create a free key at https://console.groq.com/keys, select Groq (cloud), paste the key, choose Save key, and then Check connection. Your library stays on your Mac; approved AI requests send excerpts and recent chat to Groq.
+
+Requires macOS 13 or newer on Apple silicon or Intel. Download the DMG, quit StudyGuard, and replace it in Applications. In-app installation requires the existing update-signing key; that signing step remains pending.
+
 # StudyGuard 1.5.1 — Study Notebook
 
 - Adds a Study Notebook section to the sidebar, inspired by SourceDesk.

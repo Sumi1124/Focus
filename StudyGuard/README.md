@@ -22,9 +22,12 @@ Version 1.5 adds Study Notebook to the sidebar, with SourceDesk-inspired source 
 - Settings and the StudyGuard menu include Check for Updates. New versions can be downloaded, installed, and relaunched inside the app. Finish an active focus session before updating.
 - Your app list and blocked domains are stored locally in your Mac user account.
 - Study Notebook imports PDF, TXT, Markdown, RTF, website text, and pasted text. Citation buttons open the exact saved excerpt, with PDF page numbers where available.
-- Keep multiple notebooks, write notes, ask questions, generate summaries and key points, take multiple-choice quizzes, and flip through flashcards. Sources and notes work without AI; chat and generation use a local Ollama model.
+- Keep multiple notebooks, write notes, ask questions, generate summaries and key points, take multiple-choice quizzes, and flip through flashcards. Sources and notes work without AI; chat and generation use your chosen Ollama or Groq provider.
 
 ## Study Notebook
+
+Version 1.6 adds **AI Settings → Provider → Groq (cloud)** with a masked API key field, **Save key**, and **Remove key**. Create a free API key at [Groq Console](https://console.groq.com/keys), paste it, save it, and choose **Check connection**. The key stays in your Mac's Keychain. Groq's free tier has usage limits and supported models can change; the default is `llama-3.1-8b-instant`. No Ollama installation is needed for Groq. The app asks before sending selected source excerpts, your question, and recent chat to Groq, separately for each notebook. **Reset cloud permission** makes it ask again.
+
 
 Choose **Study Notebook** in the sidebar. Use the notebook menu to create or rename a notebook. Add sources with **Add source**, then use **Chat**, **Notes**, or **Study tools**. The focus timer keeps running while you study in the notebook, and its countdown links back to Session.
 
@@ -50,7 +53,7 @@ Focus history, session topics, and goals stay on your Mac. The updater contacts 
 
 ## GitHub release
 
-Download the DMG and standalone source archive from [StudyGuard v1.5.1](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.5.1).
+Download the DMG and standalone source archive from [StudyGuard v1.6.0](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.6.0).
 
 The GitHub Actions StudyGuard workflow checks notebook and timer behavior, compiles both Mac architectures, and publishes the DMG, source archive, and checksums. In installed copies of 1.4.0, **Check for Updates** announces 1.5.1 and **Learn More…** opens its GitHub download page. Install this release manually by downloading the DMG and replacing the app in Applications. Automatic installation through Sparkle requires the private key on the signing Mac; previous signed feed entries and the public key are retained.
 
