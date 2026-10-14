@@ -98,12 +98,13 @@ struct InkLink: View {
 struct StudyGuardApp: App {
     @StateObject private var model = FocusModel()
     @StateObject private var updater = AppUpdater()
+    @StateObject private var notebook = NotebookModel()
     @AppStorage("studyguard.appearance") private var appearance = AppAppearance.system.rawValue
     private var selectedAppearance: AppAppearance { AppAppearance(rawValue: appearance) ?? .system }
     init() { Ink.registerFonts() }
     var body: some Scene {
         WindowGroup {
-            MainView(model: model, updater: updater).frame(minWidth: 1000, minHeight: 740)
+            MainView(model: model, updater: updater, notebook: notebook).frame(minWidth: 1000, minHeight: 740)
                 .preferredColorScheme(selectedAppearance.colorScheme)
                 .onAppear { NSApp.appearance = selectedAppearance.nativeAppearance }
                 .onChange(of: appearance) { _ in NSApp.appearance = selectedAppearance.nativeAppearance }
@@ -122,6 +123,7 @@ struct StudyGuardApp: App {
 struct MainView: View {
     @ObservedObject var model: FocusModel
     @ObservedObject var updater: AppUpdater
+    @ObservedObject var notebook: NotebookModel
     @AppStorage("studyguard.appearance") private var appearance = AppAppearance.system.rawValue
     private var preferredScheme: ColorScheme? { (AppAppearance(rawValue: appearance) ?? .system).colorScheme }
     @State private var showBrowser = false
@@ -137,6 +139,7 @@ struct MainView: View {
                     header
                     if model.activeTab == 0 { session }
                     else if model.activeTab == 2 { history }
+                    else if model.activeTab == 3 { NotebookView(model: notebook, focusModel: model) }
                     else { browser }
                 }.padding(.horizontal, 48).padding(.top, 44).padding(.bottom, 24)
                     .frame(maxWidth: 1120, alignment: .leading).frame(maxWidth: .infinity)
@@ -159,10 +162,11 @@ struct MainView: View {
             navigation("Session", number: "01", index: 0)
             navigation("History", number: "02", index: 2)
             navigation("Study Browser", number: "03", index: 1)
+            navigation("Study Notebook", number: "04", index: 3)
             Spacer(minLength: 100)
             VStack(alignment: .leading, spacing: 16) {
                 InkRule()
-                Text("History stays on this Mac.").font(Ink.sans(11)).foregroundStyle(Ink.muted)
+                Text("History and notebooks stay on this Mac.").font(Ink.sans(11)).foregroundStyle(Ink.muted)
                     .fixedSize(horizontal: false, vertical: true)
                 Button("Settings") { showSettings = true }.buttonStyle(.plain).font(Ink.sans())
                     .padding(.top, 46).padding(.bottom, 36)
@@ -188,9 +192,9 @@ struct MainView: View {
     }
 
     private var header: some View {
-        let title = model.activeTab == 0 ? (model.isBreak ? "Break" : "Focus") : model.activeTab == 2 ? "History" : "Study Browser"
-        let section = model.activeTab == 0 ? "SESSION" : model.activeTab == 2 ? "HISTORY" : "BROWSER"
-        let subtitle = model.activeTab == 0 ? "Set a timer. Choose what to block." : model.activeTab == 2 ? "Focus time and recent sessions." : "Browse with your blocked-site list enabled."
+        let title = model.activeTab == 0 ? (model.isBreak ? "Break" : "Focus") : model.activeTab == 2 ? "History" : model.activeTab == 3 ? "Study Notebook" : "Study Browser"
+        let section = model.activeTab == 0 ? "SESSION" : model.activeTab == 2 ? "HISTORY" : model.activeTab == 3 ? "NOTEBOOK" : "BROWSER"
+        let subtitle = model.activeTab == 0 ? "Set a timer. Choose what to block." : model.activeTab == 2 ? "Focus time and recent sessions." : model.activeTab == 3 ? "Collect sources. Ask questions. Practice what you learn." : "Browse with your blocked-site list enabled."
         return VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("STUDYGUARD / \(section)")

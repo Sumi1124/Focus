@@ -20,9 +20,10 @@ ditto "$SPARKLE_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framewo
 for ARCH in arm64 x86_64; do
   swiftc -parse-as-library -swift-version 5 -target "$ARCH-apple-macos13.0" \
     -sdk "$SDK" -module-cache-path "$BUILD/module-cache-$ARCH" \
-    -framework AppKit -framework SwiftUI -framework Combine -framework WebKit -framework CoreText \
+    -framework AppKit -framework SwiftUI -framework Combine -framework WebKit -framework CoreText -framework PDFKit \
     -F "$SPARKLE_DIR" -framework Sparkle -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
-    "$ROOT/StudyGuard.swift" "$ROOT/UI.swift" "$ROOT/Updater.swift" -o "$BUILD/$ARCH/StudyGuard"
+    "$ROOT/StudyGuard.swift" "$ROOT/UI.swift" "$ROOT/Updater.swift" \
+    "$ROOT/NotebookCore.swift" "$ROOT/Notebook.swift" "$ROOT/NotebookUI.swift" -o "$BUILD/$ARCH/StudyGuard"
 done
 lipo -create "$BUILD/arm64/StudyGuard" "$BUILD/x86_64/StudyGuard" -output "$APP/Contents/MacOS/StudyGuard"
 

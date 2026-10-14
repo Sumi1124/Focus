@@ -1,0 +1,82 @@
+name: Build and release StudyGuard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'StudyGuard/**'
+      - '.github/workflows/studyguard-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: studyguard-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Verify and build StudyGuard for macOS
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Verify timer restoration and notebook behavior
+        working-directory: StudyGuard
+        run: |
+          mkdir -p work/checks
+          swiftc -parse-as-library -swift-version 5 \
+            -framework AppKit -framework Combine -framework SwiftUI -framework WebKit -framework PDFKit \
+            StudyGuard.swift NotebookCore.swift Notebook.swift Tests/NotebookChecks.swift \
+            -o work/checks/NotebookChecks
+          work/checks/NotebookChecks
+
+      - name: Compile Apple silicon and Intel app and create DMG
+        working-directory: StudyGuard
+        run: bash build.sh
+
+      - name: Package source and checksums
+        working-directory: StudyGuard
+        run: |
+          source BuildConfig.sh
+          git archive --format=zip --prefix="StudyGuard-$STUDYGUARD_VERSION/" \
+            --output="releases/StudyGuard-$STUDYGUARD_VERSION-source.zip" "$GITHUB_SHA:StudyGuard"
+          cd releases
+          shasum -a 256 "StudyGuard-$STUDYGUARD_VERSION-macOS-universal.dmg" \
+            "StudyGuard-$STUDYGUARD_VERSION-source.zip" > "StudyGuard-$STUDYGUARD_VERSION-SHA256.txt"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: StudyGuard-macOS
+          path: StudyGuard/releases/*
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish verified macOS release
+        if: github.ref == 'refs/heads/main'
+        working-directory: StudyGuard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          source BuildConfig.sh
+          tag="studyguard-v$STUDYGUARD_VERSION"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "Release $tag already exists; preserving its assets."
+            exit 0
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          notes = Path('RELEASE_NOTES.md').read_text().split('\n# StudyGuard ', 1)[0]
+          Path('work/release-notes.md').write_text(notes)
+          PY
+          gh release create "$tag" \
+            "releases/StudyGuard-$STUDYGUARD_VERSION-macOS-universal.dmg" \
+            "releases/StudyGuard-$STUDYGUARD_VERSION-source.zip" \
+            "releases/StudyGuard-$STUDYGUARD_VERSION-SHA256.txt" \
+            --target "$GITHUB_SHA" --title "StudyGuard $STUDYGUARD_VERSION — Study Notebook" \
+            --notes-file work/release-notes.md

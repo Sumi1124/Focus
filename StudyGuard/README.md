@@ -8,16 +8,29 @@ Version 1.3.0 adds in-app updates using Sparkle. Install this version once, then
 
 Version 1.4.0 adds dark mode. Choose System, Light, or Dark in Settings; your preference is saved. The charcoal palette covers every app screen and sheet. System follows your Mac’s appearance.
 
+Version 1.5.0 adds Study Notebook to the sidebar, with SourceDesk-inspired source collection, saved notes, source-based AI chat, summaries, key points, quizzes, and flashcards. Focus and break timers also survive quitting and reopening the app.
+
 ## What it does
 
 - Focus sessions for 25, 50, or 90 minutes.
 - During a session, selected Safari, Chrome, Edge, and Brave apps stay open; only tabs matching your blocked-site list are closed. Other selected apps receive a graceful quit request.
 - A built-in browser blocks domains on your list. YouTube and Instagram are included by default.
 - A personal focus dashboard tracks focus time today, all-time focus time, and sessions started. The history stays on your Mac.
+- The selected timer and active session are saved locally. If you quit and reopen StudyGuard, the timer resumes from its saved end time; app and tab controls only run while StudyGuard is open.
 - Name each focus session, edit the daily goal beside the timer, and review a seven-day chart and your last eight sessions in History.
 - Take a 5, 10, or 15 minute break with app and browser controls paused. Study Browser continues to use its site list.
 - Settings and the StudyGuard menu include Check for Updates. New versions can be downloaded, installed, and relaunched inside the app. Finish an active focus session before updating.
 - Your app list and blocked domains are stored locally in your Mac user account.
+- Study Notebook imports PDF, TXT, Markdown, RTF, website text, and pasted text. Citation buttons open the exact saved excerpt, with PDF page numbers where available.
+- Keep multiple notebooks, write notes, ask questions, generate summaries and key points, take multiple-choice quizzes, and flip through flashcards. Sources and notes work without AI; chat and generation use a local Ollama model.
+
+## Study Notebook
+
+Choose **Study Notebook** in the sidebar. Use the notebook menu to create or rename a notebook. Add sources with **Add source**, then use **Chat**, **Notes**, or **Study tools**. The focus timer keeps running while you study in the notebook, and its countdown links back to Session.
+
+For AI tools, install and open [Ollama](https://ollama.com/download/mac), download a model (for example, `ollama pull llama3.2`), and choose **Check connection**. Pick an installed model or enter its name. AI requests go only to Ollama on this Mac at `127.0.0.1:11434`; there is no cloud AI provider or API key in this version. Website imports contact the URL you add.
+
+Notebook data is stored in `~/Library/Application Support/com.studyguard.mac/notebooks.json`, with atomic writes. **Export notebook** creates a readable JSON backup containing sources, notes, conversations, and study materials. The AI works from selected excerpts, rather than every word in long documents. Check citations; AI answers and generated quiz answers can contain mistakes. Documents are limited to 20 MB, websites to 2 MB, and source text to 500,000 characters. Scanned PDFs need readable text from an OCR tool; websites that require JavaScript or login may need pasted text.
 
 ## Important limits
 
@@ -37,6 +50,8 @@ Focus history, session topics, and goals stay on your Mac. The updater contacts 
 
 ## GitHub release
 
-Download the DMG and standalone source archive from [StudyGuard v1.4.0](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.4.0).
+Download the DMG and standalone source archive from [StudyGuard v1.5.0](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.5.0).
 
-Recent session history starts with version 1.1.0; previously recorded total focus time remains available. Regular quits and Mac sleep save an active session.
+The GitHub Actions StudyGuard workflow checks notebook and timer behavior, compiles both Mac architectures, and publishes the DMG, source archive, and checksums. This release is installed manually by downloading the DMG and replacing the app in Applications. Sparkle's in-app update feed requires the private key on the signing Mac; the CI release does not change that feed or replace its public key.
+
+Recent session history starts with version 1.1.0; previously recorded total focus time remains available. Active timers are saved on each tick, quit, and Mac sleep. A timer keeps its original end time while the app is closed; on reopening, a finished focus session is added to history once. App and tab controls run only while StudyGuard is open.

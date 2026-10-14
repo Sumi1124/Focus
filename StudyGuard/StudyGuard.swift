@@ -23,6 +23,19 @@ struct StudyDay: Identifiable {
     var id: Date { date }
 }
 
+private struct SavedTimerState: Codable {
+    var duration: Int
+    var secondsLeft: Int
+    var isRunning: Bool
+    var isBreak: Bool
+    var breakDuration: Int
+    var endDate: Date?
+    var sessionStartedAt: Date?
+    var accountedThrough: Date?
+    var sessionSeconds: Int
+    var recordedDays: [String: Int]?
+}
+
 @MainActor
 final class FocusModel: ObservableObject {
     @Published var duration = 25
@@ -54,11 +67,13 @@ final class FocusModel: ObservableObject {
     private var lifecycleObservers: [AnyCancellable] = []
     private var lastQuitRequest: [String: Date] = [:]
     private var browserChecksInProgress = Set<String>()
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
     private let statsDateKey = "focusSecondsByDay"
+    private let timerStateKey = "savedTimerState"
     private var recordedToday: [String: Int]
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         recordedToday = defaults.dictionary(forKey: statsDateKey) as? [String: Int] ?? [:]
         totalFocusSeconds = recordedToday.values.reduce(0, +)
         todayFocusSeconds = recordedToday[Self.dayKey(for: Date())] ?? 0
@@ -76,12 +91,13 @@ final class FocusModel: ObservableObject {
         }
         let savedDomains = defaults.stringArray(forKey: "blockedDomains")
         if let savedDomains { blockedDomains = savedDomains }
+        restoreTimerState()
         refreshTicker()
         lifecycleObservers.append(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification).sink { [weak self] _ in
-            self?.finishBeforeClosing()
+            self?.checkpointTimerState()
         })
         lifecycleObservers.append(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.willSleepNotification).sink { [weak self] _ in
-            self?.finishBeforeClosing()
+            self?.checkpointTimerState()
         })
         lifecycleObservers.append(Timer.publish(every: 60, on: .main, in: .common).autoconnect().sink { [weak self] _ in
             self?.refreshCalendarDay()
@@ -109,6 +125,7 @@ final class FocusModel: ObservableObject {
         guard !isRunning else { return }
         self.isBreak = isBreak
         secondsLeft = (isBreak ? breakDuration : duration) * 60
+        saveTimerState()
     }
 
     var timeString: String {
@@ -119,6 +136,7 @@ final class FocusModel: ObservableObject {
         guard !isRunning else { return }
         if isBreak { breakDuration = minutes } else { duration = minutes }
         secondsLeft = minutes * 60
+        saveTimerState()
     }
 
     func toggleSession() {
@@ -137,6 +155,7 @@ final class FocusModel: ObservableObject {
                 defaults.set(sessionsStarted, forKey: "completedFocusSessions")
             }
             notice = isBreak ? "Break active. App and tab controls are paused." : "Focus session active. Selected app and tab controls are enabled."
+            saveTimerState()
             refreshTicker()
             closeSelectedApps()
         }
@@ -201,6 +220,7 @@ final class FocusModel: ObservableObject {
             self.recordFocusTime()
             let remaining = max(0, Int(ceil(endDate.timeIntervalSinceNow)))
             self.secondsLeft = remaining
+            self.saveTimerState()
             self.closeSelectedApps()
             if remaining == 0 {
                 self.endSession(message: self.isBreak ? "Break complete." : "Session complete.", completed: true)
@@ -229,9 +249,69 @@ final class FocusModel: ObservableObject {
         defaults.set(recordedToday, forKey: statsDateKey)
     }
 
-    private func finishBeforeClosing() {
-        guard isRunning else { return }
-        endSession(message: "Session saved.")
+    private func checkpointTimerState() {
+        if isRunning {
+            recordFocusTime()
+            if let endDate {
+                secondsLeft = max(0, Int(ceil(endDate.timeIntervalSinceNow)))
+            }
+        }
+        saveTimerState()
+    }
+
+    private func saveTimerState() {
+        let state = SavedTimerState(
+            duration: duration,
+            secondsLeft: secondsLeft,
+            isRunning: isRunning,
+            isBreak: isBreak,
+            breakDuration: breakDuration,
+            endDate: endDate,
+            sessionStartedAt: sessionStartedAt,
+            accountedThrough: accountedThrough,
+            sessionSeconds: sessionSeconds,
+            recordedDays: recordedToday
+        )
+        if let data = try? JSONEncoder().encode(state) {
+            defaults.set(data, forKey: timerStateKey)
+        }
+    }
+
+    private func restoreTimerState() {
+        guard let data = defaults.data(forKey: timerStateKey),
+              let state = try? JSONDecoder().decode(SavedTimerState.self, from: data) else { return }
+        duration = min(180, max(1, state.duration))
+        breakDuration = min(60, max(1, state.breakDuration))
+        isBreak = state.isBreak
+        isRunning = state.isRunning
+        secondsLeft = max(0, state.secondsLeft)
+        endDate = state.endDate
+        sessionStartedAt = state.sessionStartedAt
+        accountedThrough = state.accountedThrough
+        sessionSeconds = max(0, state.sessionSeconds)
+        if let recordedDays = state.recordedDays {
+            recordedToday = recordedDays
+            totalFocusSeconds = recordedToday.values.reduce(0, +)
+            refreshCalendarDay()
+        }
+
+        // Ignore incomplete active-session snapshots instead of leaving the timer stuck.
+        if isRunning && (endDate == nil || sessionStartedAt == nil || accountedThrough == nil) {
+            isRunning = false
+            endDate = nil
+            sessionStartedAt = nil
+            accountedThrough = nil
+            sessionSeconds = 0
+        } else if isRunning, let endDate {
+            secondsLeft = max(0, Int(ceil(endDate.timeIntervalSinceNow)))
+            recordFocusTime()
+            notice = isBreak ? "Break resumed." : "Focus session resumed."
+            if secondsLeft == 0 {
+                endSession(message: isBreak ? "Break completed while StudyGuard was closed." : "Focus session completed while StudyGuard was closed.", completed: true)
+            } else {
+                saveTimerState()
+            }
+        }
     }
 
     private static func dayKey(for date: Date) -> String {
@@ -331,5 +411,6 @@ final class FocusModel: ObservableObject {
         ticker = nil
         secondsLeft = (isBreak ? breakDuration : duration) * 60
         notice = message
+        saveTimerState()
     }
 }
