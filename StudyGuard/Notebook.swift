@@ -428,7 +428,7 @@ final class NotebookModel: ObservableObject {
                     struct CloudFailure: Decodable { struct Detail: Decodable { var message: String }; var error: Detail }
                     let detail: String
                     if cloud {
-                        if http.statusCode == 429 { detail = "Groq's usage limit has been reached. Wait and try again, or check your free-tier limits." }
+                        if (response as? HTTPURLResponse)?.statusCode == 429 { detail = "Groq's usage limit has been reached. Wait and try again, or check your free-tier limits." }
                         else { detail = ((try? JSONDecoder().decode(CloudFailure.self, from: data).error.message) ?? "Groq could not answer. Check your API key and model.").replacingOccurrences(of: apiKey, with: "[redacted]") }
                     } else { detail = (try? JSONDecoder().decode(Failure.self, from: data).error) ?? "The local model could not answer." }
                     throw NotebookError.message(detail)
