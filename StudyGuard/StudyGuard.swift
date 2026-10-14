@@ -385,9 +385,10 @@ final class FocusModel: ObservableObject {
         DispatchQueue.global(qos: .utility).async { [weak self] in
             var error: NSDictionary?
             NSAppleScript(source: scriptSource)?.executeAndReturnError(&error)
-            DispatchQueue.main.async {
+            let hadError = error != nil
+            DispatchQueue.main.async { [weak self] in
                 self?.browserChecksInProgress.remove(app.bundleID)
-                if error != nil {
+                if hadError {
                     self?.notice = "Allow StudyGuard to control \(appleScriptName) in System Settings → Privacy & Security → Automation."
                 }
             }

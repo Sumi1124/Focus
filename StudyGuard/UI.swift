@@ -662,6 +662,7 @@ struct BrowserWebView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model: model, address: $address, blockedURL: $blockedURL) }
     func makeNSView(context: Context) -> WKWebView { webView.navigationDelegate = context.coordinator; return webView }
     func updateNSView(_ nsView: WKWebView, context: Context) { context.coordinator.model = model }
+    @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate {
         var model: FocusModel
         @Binding var address: String

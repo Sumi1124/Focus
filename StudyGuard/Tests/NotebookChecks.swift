@@ -8,7 +8,7 @@ struct NotebookChecks {
         precondition(condition(), message)
     }
 
-    static func main() throws {
+    static func main() async throws {
         _ = NSApplication.shared
         let suite = "StudyGuard.Checks.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -61,6 +61,7 @@ struct NotebookChecks {
         let breakFinished = FocusModel(defaults: defaults)
         expect(!breakFinished.isRunning && breakFinished.isBreak && breakFinished.totalFocusSeconds == 60 && breakFinished.history.count == reopened.history.count, "Break restoration changed focus totals or history")
         print("PASS: timer settings, restart, accounting, completion, and break restoration")
+        settings.toggleSession()
 
         // Notebook storage retains sources, notes, and selection across app launches.
         let library = NotebookModel(defaults: defaults, folder: folder)
@@ -105,5 +106,42 @@ struct NotebookChecks {
             preconditionFailure("Invalid quiz answers must be rejected")
         } catch {}
         print("PASS: retrieval coverage, PDF page references, citation validation, and structured study tools")
+
+        // Exercise the actual Ollama HTTP contract against a local test service.
+        let ai = NotebookModel(defaults: defaults, folder: folder.appendingPathComponent("ai-checks"))
+        expect(ai.addText(title: "Biology", text: "Photosynthesis uses light to make sugars."), "AI test source could not be saved")
+        ai.checkConnection()
+        try await waitForWork(ai)
+        expect(ai.availableModels == ["test-model"] && ai.modelName == "test-model", "Model discovery did not use the local Ollama API")
+        ai.ask("How does photosynthesis work?")
+        try await waitForWork(ai)
+        expect(ai.error.isEmpty && ai.selected?.messages.last?.role == "assistant", "AI chat did not finish")
+        expect(ai.selected?.messages.last?.citations.count == 1 && ai.selected?.messages.last?.text.contains("S99") == false, "AI chat did not validate its source references")
+        for tool in NotebookTool.allCases {
+            ai.generate(tool)
+            try await waitForWork(ai)
+            expect(ai.error.isEmpty && ai.selected?.artifacts.first?.tool == tool, "AI study tool failed: \(tool.title)")
+        }
+        let savedAI = NotebookModel(defaults: defaults, folder: folder.appendingPathComponent("ai-checks"))
+        expect(savedAI.selected?.artifacts.count == 4 && savedAI.selected?.messages.count == 2, "Generated material did not survive relaunch")
+        ai.ask("return_error")
+        try await waitForWork(ai)
+        expect(ai.error.contains("simulated failure") && !ai.isWorking, "HTTP failures did not restore the interface")
+        ai.error = ""
+        let messagesBeforeCancel = ai.selected!.messages.count
+        ai.ask("slow_request")
+        try await Task.sleep(nanoseconds: 100_000_000)
+        ai.cancel()
+        try await waitForWork(ai)
+        expect(!ai.isWorking && ai.error.isEmpty && ai.selected!.messages.count == messagesBeforeCancel + 1, "Cancelled AI request saved an unwanted answer or showed a connection error")
+        print("PASS: local model discovery, cited chat, all study tools, HTTP failures, cancellation, and output persistence")
+    }
+
+    static func waitForWork(_ model: NotebookModel) async throws {
+        for _ in 0..<100 {
+            if !model.isWorking { return }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        preconditionFailure("Local AI operation did not finish within five seconds")
     }
 }

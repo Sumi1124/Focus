@@ -177,7 +177,10 @@ final class NotebookModel: ObservableObject {
                 self.save()
                 self.status = "Website saved."
             } catch is CancellationError { self.status = "Cancelled." }
-            catch { self.error = error.localizedDescription }
+            catch {
+                if Task.isCancelled { self.status = "Cancelled." }
+                else { self.error = error.localizedDescription }
+            }
         }
     }
 
@@ -199,7 +202,10 @@ final class NotebookModel: ObservableObject {
                 if !self.availableModels.contains(where: { $0 == self.modelName || $0 == self.modelName + ":latest" }), let first = self.availableModels.first { self.modelName = first }
                 self.status = self.availableModels.isEmpty ? "Ollama is running. Download a model to begin." : "Ollama connected. \(self.availableModels.count) local model(s) available."
             } catch is CancellationError { self.status = "Cancelled." }
-            catch { self.error = "Could not connect to Ollama on this Mac. Open Ollama and download a model, then try again. \(error.localizedDescription)" }
+            catch {
+                if Task.isCancelled { self.status = "Cancelled." }
+                else { self.error = "Could not connect to Ollama on this Mac. Open Ollama and download a model, then try again. \(error.localizedDescription)" }
+            }
         }
     }
 
@@ -271,6 +277,7 @@ final class NotebookModel: ObservableObject {
                 self.status = "Saved on this Mac. AI output can contain mistakes; use the citations to check it."
             } catch is CancellationError { self.status = "Cancelled." }
             catch {
+                if Task.isCancelled { self.status = "Cancelled."; return }
                 self.error = "\(error.localizedDescription) For connection problems, open Ollama, download the selected model, and choose Check connection."
                 self.status = "The request did not finish. Your sources and notes are saved."
             }
