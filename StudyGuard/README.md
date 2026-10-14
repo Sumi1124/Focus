@@ -1,25 +1,36 @@
 # StudyGuard for macOS
 
-StudyGuard is a separate focus-timer app in the Focus repository. The existing FocusGuard project is unchanged.
+StudyGuard is a small study timer with a gentle app focus guard and a separate study browser.
 
-## Download
+## What it does
 
-Download the DMG and source archive from the [StudyGuard v1.0.2 release](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.0.2).
+- Focus sessions for 25, 50, or 90 minutes.
+- During a session, selected Safari, Chrome, Edge, and Brave apps stay open; only tabs matching your blocked-site list are closed. Other selected apps receive a graceful quit request.
+- A built-in browser blocks domains on your list. YouTube and Instagram are included by default.
+- A personal focus dashboard tracks focus time today, all-time focus time, and sessions started. The history stays on your Mac.
+- Name each focus session, set a daily goal, and review a seven-day chart and your last eight sessions in Your Progress.
+- Take a 5, 10, or 15 minute break with app and browser controls paused. Study Browser continues to use its site list.
+- Settings includes a GitHub update check and opens the release page when a newer version is available.
+- Your app list and blocked domains are stored locally in your Mac user account.
 
-## Features
+## Important limits
 
-- Focus time today, total focus time, and sessions started, stored locally on your Mac.
-- Settings includes a GitHub release check. When an update is found, the release page provides the DMG for download and manual installation.
-- The updater checks the latest StudyGuard release at GitHub; it does not silently replace the app.
+macOS does not expose Apple's Screen Time shielding APIs to Mac apps. StudyGuard therefore cannot block an app or website system-wide. Add Safari, Chrome, Edge, or Brave in Focus to have its matching tabs closed during sessions. Browser tab closing requires allowing StudyGuard to control the selected browser in System Settings → Privacy & Security → Automation. Unsupported browsers stay open; StudyGuard does not close the whole browser. Other app closure is a graceful quit request and a user can cancel it. The focus guard only runs while StudyGuard is open. The Study Browser also enforces the site list itself.
 
-## Build
+## Install
 
-Requirements: macOS 13 or newer and Xcode Command Line Tools. Run `./build.sh` from this folder. It builds a universal app and writes the DMG to `releases/`.
+Open the latest `StudyGuard-<version>-macOS-universal.dmg`, then drag StudyGuard to Applications. This build is not Developer ID signed or notarized, so the first launch may require Control-click → Open. It is an open-source build intended for direct GitHub distribution and personal use.
 
-## Browser behavior
+## Build from source
 
-Select Safari, Chrome, Edge, or Brave in Focus. During an active session, StudyGuard keeps the browser open and closes tabs whose URLs match the blocked-site list. Allow browser control in System Settings → Privacy & Security → Automation when asked. Other browsers stay open. Non-browser apps receive a graceful quit request.
+Requirements: macOS 13 or newer and Xcode Command Line Tools.
 
-Website blocking in the built-in Study Browser does not affect other browsers. macOS does not expose Apple's Screen Time shielding APIs to Mac apps, so StudyGuard cannot enforce system-wide app and website restrictions.
+Run `bash build.sh` from the StudyGuard folder. The script compiles arm64 and Intel builds, combines them into a universal app, signs it locally with an ad-hoc signature, and creates the DMG in `releases/`.
 
-The release build is not Developer ID signed or notarized. The first launch may require Control-click → Open.
+Focus history, session topics, and goals stay on your Mac. Settings contacts GitHub when you check for an update; Study Browser loads websites directly using WebKit.
+
+## GitHub release
+
+Download the DMG and standalone source archive from [StudyGuard v1.1.0](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.1.0).
+
+Recent session history starts with version 1.1.0; previously recorded total focus time remains available. Regular quits and Mac sleep save an active session.
