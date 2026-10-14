@@ -49,8 +49,20 @@ jobs:
         working-directory: StudyGuard
         run: |
           source BuildConfig.sh
-          git archive --format=zip --prefix="StudyGuard-$STUDYGUARD_VERSION/" \
-            --output="releases/StudyGuard-$STUDYGUARD_VERSION-source.zip" "$GITHUB_SHA:StudyGuard"
+          git -C "$GITHUB_WORKSPACE" archive --format=zip --prefix="StudyGuard-$STUDYGUARD_VERSION/" \
+            --output="$GITHUB_WORKSPACE/StudyGuard/releases/StudyGuard-$STUDYGUARD_VERSION-source.zip" "$GITHUB_SHA:StudyGuard"
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          archive = next(Path('releases').glob('*-source.zip'))
+          with ZipFile(archive) as source:
+              names = source.namelist()
+              assert len(names) > 20, 'The source archive is empty or incomplete'
+              assert any(name.endswith('/Notebook.swift') for name in names), 'Notebook source is missing'
+              assert any(name.endswith('/build.sh') for name in names), 'Build script is missing'
+              assert source.testzip() is None, 'Source ZIP failed its CRC check'
+          print(f'Verified {len(names)} source archive entries.')
+          PY
           cd releases
           shasum -a 256 "StudyGuard-$STUDYGUARD_VERSION-macOS-universal.dmg" \
             "StudyGuard-$STUDYGUARD_VERSION-source.zip" > "StudyGuard-$STUDYGUARD_VERSION-SHA256.txt"
@@ -73,6 +85,25 @@ jobs:
           source BuildConfig.sh
           tag="studyguard-v$STUDYGUARD_VERSION"
           if gh release view "$tag" > /dev/null 2>&1; then
+            existing_size="$(gh release view "$tag" --json assets --jq '.assets[] | select(.name | endswith("-source.zip")) | .size')"
+            if [[ "${existing_size:-0}" -lt 1024 ]]; then
+              target="$(gh release view "$tag" --json targetCommitish --jq .targetCommitish)"
+              git fetch --depth=1 origin "$target"
+              if [[ "$(git rev-parse "$target:StudyGuard")" != "$(git rev-parse "$GITHUB_SHA:StudyGuard")" ]]; then
+                echo 'Cannot repair the source archive: the app source differs from the published release.'
+                exit 1
+              fi
+              dmg_name="StudyGuard-$STUDYGUARD_VERSION-macOS-universal.dmg"
+              source_name="StudyGuard-$STUDYGUARD_VERSION-source.zip"
+              checksum_name="StudyGuard-$STUDYGUARD_VERSION-SHA256.txt"
+              mkdir -p work/release-repair
+              gh release download "$tag" --pattern "$dmg_name" --dir work/release-repair
+              cp "releases/$source_name" "work/release-repair/$source_name"
+              (cd work/release-repair && shasum -a 256 "$dmg_name" "$source_name" > "$checksum_name")
+              gh release upload "$tag" "work/release-repair/$source_name" "work/release-repair/$checksum_name" --clobber
+              echo 'Repaired the source archive and checksums; the published DMG is preserved.'
+              exit 0
+            fi
             echo "Release $tag already exists; preserving its assets."
             exit 0
           fi
