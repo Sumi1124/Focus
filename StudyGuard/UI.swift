@@ -70,19 +70,27 @@ struct InkLink: View {
 @main
 struct StudyGuardApp: App {
     @StateObject private var model = FocusModel()
+    @StateObject private var updater = AppUpdater()
     init() { Ink.registerFonts() }
     var body: some Scene {
         WindowGroup {
-            MainView(model: model).frame(minWidth: 1000, minHeight: 740)
+            MainView(model: model, updater: updater).frame(minWidth: 1000, minHeight: 740)
                 .preferredColorScheme(.light)
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1152, height: 800)
+        .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { updater.checkForUpdates() }
+                    .disabled(!updater.canCheckForUpdates || model.isRunning)
+            }
+        }
     }
 }
 
 struct MainView: View {
     @ObservedObject var model: FocusModel
+    @ObservedObject var updater: AppUpdater
     @State private var showBrowser = false
     @State private var showSettings = false
     @State private var showDistractions = false
@@ -103,7 +111,7 @@ struct MainView: View {
         }
         .font(Ink.sans()).foregroundStyle(Ink.text).background(Ink.paper)
         .ignoresSafeArea(.container, edges: .top)
-        .sheet(isPresented: $showSettings) { SettingsView(model: model) }
+        .sheet(isPresented: $showSettings) { SettingsView(model: model, updater: updater) }
         .sheet(isPresented: $showDistractions) { DistractionsView(model: model) }
         .sheet(isPresented: $showGoal) { GoalView(model: model) }
         .sheet(isPresented: $showBrowser) { StudyBrowser(model: model).frame(minWidth: 800, minHeight: 600) }
@@ -426,34 +434,34 @@ struct SheetHeading: View {
 
 struct SettingsView: View {
     @ObservedObject var model: FocusModel
+    @ObservedObject var updater: AppUpdater
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SheetHeading(title: "Settings") { dismiss() }
-            Text("StudyGuard \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.2.0")")
+            Text("StudyGuard \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.0")")
                 .font(Ink.mono(12)).foregroundStyle(Ink.muted).padding(.top, 18)
             InkRule().padding(.vertical, 25)
             Text("Updates").font(Ink.sans(16, .medium))
-            Text("Check GitHub for a newer version.").foregroundStyle(Ink.muted).padding(.top, 14)
+            Text("Download and install new versions inside StudyGuard.")
+                .foregroundStyle(Ink.muted).padding(.top, 14)
             HStack(spacing: 16) {
-                Button { model.checkForUpdates() } label: {
-                    HStack(spacing: 8) {
-                        if model.isCheckingForUpdates { ProgressView().controlSize(.small) }
-                        Text(model.isCheckingForUpdates ? "Checking…" : "Check for updates")
-                    }
-                }.buttonStyle(InkButtonStyle()).disabled(model.isCheckingForUpdates)
-                if model.updateAvailable {
-                    Button("Download update ↗") { model.openLatestRelease() }.buttonStyle(InkButtonStyle(primary: false))
-                }
+                Button { dismiss(); updater.checkForUpdates() } label: { Text("Check for updates") }
+                    .buttonStyle(InkButtonStyle()).disabled(!updater.canCheckForUpdates || model.isRunning)
             }.padding(.top, 20)
-            Text(model.updateMessage).font(Ink.sans(12)).foregroundStyle(Ink.muted)
+            Text(model.isRunning ? "Finish your session before updating." : updater.status)
+                .font(Ink.sans(12)).foregroundStyle(Ink.muted)
                 .fixedSize(horizontal: false, vertical: true).padding(.top, 14)
-            Text("When available, download and install the new DMG.").font(Ink.sans(12)).foregroundStyle(Ink.muted).padding(.top, 14)
+            Toggle("Check for updates automatically", isOn: Binding(
+                get: { updater.automaticChecks }, set: { updater.setAutomaticChecks($0) }
+            )).toggleStyle(.checkbox).font(Ink.sans(13)).padding(.top, 18)
+            Text("Install and Relaunch replaces this app. Your history and settings stay on this Mac.")
+                .font(Ink.sans(12)).foregroundStyle(Ink.muted).padding(.top, 14)
             InkRule().padding(.vertical, 24)
             Text("Goals and history are stored on this Mac.").font(Ink.sans(13)).foregroundStyle(Ink.muted)
             Spacer(minLength: 20)
             HStack { Spacer(); Button("Done") { dismiss() }.buttonStyle(InkButtonStyle()).keyboardShortcut(.cancelAction) }
-        }.padding(28).frame(width: 560, height: 465).font(Ink.sans()).foregroundStyle(Ink.text).background(Ink.paper)
+        }.padding(28).frame(width: 560, height: 500).font(Ink.sans()).foregroundStyle(Ink.text).background(Ink.paper)
     }
 }
 

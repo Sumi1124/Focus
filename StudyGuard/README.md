@@ -4,6 +4,8 @@ StudyGuard is a macOS study timer with app and tab controls and a separate study
 
 Version 1.2.0 implements the paper-and-ink Penpot design: a large timer, simple navigation, History rows and charts, separate Distractions and Settings sheets, and a custom bookmarked-page app icon. Libre Baskerville and IBM Plex fonts are bundled under their SIL Open Font Licenses in `Assets/Fonts`.
 
+Version 1.3.0 adds in-app updates using Sparkle. Install this version once, then use Settings → Check for updates and follow the Install and Relaunch window for future versions. Automatic checks are optional. Updates are signed and verified before extraction; history and settings remain local.
+
 ## What it does
 
 - Focus sessions for 25, 50, or 90 minutes.
@@ -12,7 +14,7 @@ Version 1.2.0 implements the paper-and-ink Penpot design: a large timer, simple 
 - A personal focus dashboard tracks focus time today, all-time focus time, and sessions started. The history stays on your Mac.
 - Name each focus session, edit the daily goal beside the timer, and review a seven-day chart and your last eight sessions in History.
 - Take a 5, 10, or 15 minute break with app and browser controls paused. Study Browser continues to use its site list.
-- Settings includes a GitHub update check and opens the release page when a newer version is available.
+- Settings and the StudyGuard menu include Check for Updates. New versions can be downloaded, installed, and relaunched inside the app. Finish an active focus session before updating.
 - Your app list and blocked domains are stored locally in your Mac user account.
 
 ## Important limits
@@ -27,12 +29,12 @@ Open the latest `StudyGuard-<version>-macOS-universal.dmg`, then drag StudyGuard
 
 Requirements: macOS 13 or newer and Xcode Command Line Tools.
 
-Run `bash build.sh` from the StudyGuard folder. The script compiles arm64 and Intel builds, combines them into a universal app, signs it locally with an ad-hoc signature, and creates the DMG in `releases/`.
+Run `bash build.sh` from the StudyGuard folder. The script fetches the pinned Sparkle framework from its official release, verifies its SHA-256, compiles arm64 and Intel builds, combines them into a universal app, signs it locally with an ad-hoc signature, and creates the DMG in `releases/`. Sparkle's supplied signatures are preserved. Internet access is required for the first build.
 
-Focus history, session topics, and goals stay on your Mac. Settings contacts GitHub when you check for an update; Study Browser loads websites directly using WebKit.
+Focus history, session topics, and goals stay on your Mac. The updater contacts the GitHub-hosted update feed and downloads signed release assets; Study Browser loads websites directly using WebKit. See [Updates/README.md](Updates/README.md) for future publishing and signing instructions.
 
 ## GitHub release
 
-Download the DMG and standalone source archive from [StudyGuard v1.2.0](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.2.0).
+Download the DMG and standalone source archive from [StudyGuard v1.3.0](https://github.com/Sumi1124/Focus/releases/tag/studyguard-v1.3.0).
 
 Recent session history starts with version 1.1.0; previously recorded total focus time remains available. Regular quits and Mac sleep save an active session.

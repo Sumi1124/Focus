@@ -45,9 +45,6 @@ final class FocusModel: ObservableObject {
     @Published var totalFocusSeconds: Int
     @Published var todayFocusSeconds: Int
     @Published var sessionsStarted: Int
-    @Published var updateMessage = "Not checked yet."
-    @Published var updateAvailable = false
-    @Published var isCheckingForUpdates = false
 
     private var endDate: Date?
     private var sessionStartedAt: Date?
@@ -244,59 +241,6 @@ final class FocusModel: ObservableObject {
         formatter.timeZone = .current
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: date)
-    }
-
-    func checkForUpdates() {
-        guard !isCheckingForUpdates else { return }
-        isCheckingForUpdates = true
-        updateAvailable = false
-        updateMessage = "Checking GitHub for updates…"
-        let url = URL(string: "https://api.github.com/repos/Sumi1124/Focus/releases?per_page=100")!
-        var request = URLRequest(url: url, timeoutInterval: 20)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        request.setValue("StudyGuard macOS updater", forHTTPHeaderField: "User-Agent")
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.isCheckingForUpdates = false
-                guard error == nil, let http = response as? HTTPURLResponse, http.statusCode == 200,
-                      let data, let releases = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
-                      let release = releases.first(where: {
-                          ($0["tag_name"] as? String)?.hasPrefix("studyguard-v") == true && ($0["prerelease"] as? Bool) != true && ($0["draft"] as? Bool) != true
-                      }),
-                      let tag = release["tag_name"] as? String,
-                      let htmlURL = release["html_url"] as? String,
-                      let pageURL = URL(string: htmlURL) else {
-                    self.updateMessage = "Couldn’t check GitHub. Check your internet connection and try again."
-                    return
-                }
-                let latest = String(tag.dropFirst("studyguard-v".count))
-                let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.2.0"
-                if Self.version(latest, isNewerThan: current) {
-                    self.updateAvailable = true
-                    self.updateMessage = "StudyGuard \(latest) is available. Open the release to download and install it."
-                    self.defaults.set(pageURL.absoluteString, forKey: "studyGuardLatestReleaseURL")
-                } else {
-                    self.updateMessage = "You’re up to date (version \(current))."
-                }
-            }
-        }.resume()
-    }
-
-    func openLatestRelease() {
-        guard let value = defaults.string(forKey: "studyGuardLatestReleaseURL"), let url = URL(string: value) else { return }
-        NSWorkspace.shared.open(url)
-    }
-
-    private static func version(_ candidate: String, isNewerThan current: String) -> Bool {
-        let lhs = candidate.split(separator: ".").compactMap { Int($0) }
-        let rhs = current.split(separator: ".").compactMap { Int($0) }
-        for index in 0..<max(lhs.count, rhs.count) {
-            let a = index < lhs.count ? lhs[index] : 0
-            let b = index < rhs.count ? rhs[index] : 0
-            if a != b { return a > b }
-        }
-        return false
     }
 
     private func closeSelectedApps() {

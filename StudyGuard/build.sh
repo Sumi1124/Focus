@@ -1,24 +1,28 @@
 #!/bin/bash
 set -euo pipefail
-
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+source "$ROOT/BuildConfig.sh"
 SDK="$(xcrun --show-sdk-path)"
-BUILD="$ROOT/work/build"
+BUILD="${STUDYGUARD_WORK:-$ROOT/work}/build-$STUDYGUARD_VERSION"
 APP="$BUILD/StudyGuard.app"
-OUT="$ROOT/releases"
-VERSION="1.2.0"
+OUT="${STUDYGUARD_OUT:-$ROOT/releases}"
+SPARKLE_DIR="$(bash "$ROOT/Scripts/bootstrap-sparkle.sh")"
+PUBLIC_KEY="$(cat "$ROOT/Updates/public-ed-key.txt")"
 mkdir -p "$BUILD" "$OUT"
 rm -rf "$APP" "$BUILD/arm64" "$BUILD/x86_64" "$BUILD/stage"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$BUILD/arm64" "$BUILD/x86_64"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks" "$BUILD/arm64" "$BUILD/x86_64"
 cp "$ROOT/Assets/StudyGuard.icns" "$APP/Contents/Resources/StudyGuard.icns"
 cp "$ROOT/Assets/StudyGuard-1024.png" "$APP/Contents/Resources/StudyGuard-1024.png"
 cp -R "$ROOT/Assets/Fonts" "$APP/Contents/Resources/Fonts"
+cp "$ROOT/Assets/Sparkle-LICENSE.txt" "$APP/Contents/Resources/Sparkle-LICENSE.txt"
+ditto "$SPARKLE_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 
 for ARCH in arm64 x86_64; do
   swiftc -parse-as-library -swift-version 5 -target "$ARCH-apple-macos13.0" \
     -sdk "$SDK" -module-cache-path "$BUILD/module-cache-$ARCH" \
     -framework AppKit -framework SwiftUI -framework Combine -framework WebKit -framework CoreText \
-    "$ROOT/StudyGuard.swift" "$ROOT/UI.swift" -o "$BUILD/$ARCH/StudyGuard"
+    -F "$SPARKLE_DIR" -framework Sparkle -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
+    "$ROOT/StudyGuard.swift" "$ROOT/UI.swift" "$ROOT/Updater.swift" -o "$BUILD/$ARCH/StudyGuard"
 done
 lipo -create "$BUILD/arm64/StudyGuard" "$BUILD/x86_64/StudyGuard" -output "$APP/Contents/MacOS/StudyGuard"
 
@@ -33,20 +37,27 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>StudyGuard</string>
   <key>CFBundleIconFile</key><string>StudyGuard.icns</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>$VERSION</string>
-  <key>CFBundleVersion</key><string>120</string>
+  <key>CFBundleShortVersionString</key><string>$STUDYGUARD_VERSION</string>
+  <key>CFBundleVersion</key><string>$STUDYGUARD_BUILD_NUMBER</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSAppleEventsUsageDescription</key><string>StudyGuard checks tabs in your selected browser for blocked sites and closes only matching tabs during a focus session.</string>
   <key>NSPrincipalClass</key><string>NSApplication</string>
+  <key>SUFeedURL</key><string>$STUDYGUARD_UPDATE_FEED</string>
+  <key>SUPublicEDKey</key><string>$PUBLIC_KEY</string>
+  <key>SUEnableAutomaticChecks</key><false/>
+  <key>SUAllowsAutomaticUpdates</key><false/>
+  <key>SUVerifyUpdateBeforeExtraction</key><true/>
+  <key>SUSendProfileInfo</key><false/>
 </dict></plist>
 PLIST
 
-codesign --force --deep --sign - "$APP"
+# Preserve the signatures supplied with Sparkle's framework and helper applications.
+codesign --force --sign - "$APP"
 mkdir -p "$BUILD/stage"
-cp -R "$APP" "$BUILD/stage/StudyGuard.app"
+ditto "$APP" "$BUILD/stage/StudyGuard.app"
 ln -s /Applications "$BUILD/stage/Applications"
-DMG="$OUT/StudyGuard-$VERSION-macOS-universal.dmg"
+DMG="$OUT/StudyGuard-$STUDYGUARD_VERSION-macOS-universal.dmg"
 rm -f "$DMG"
-hdiutil create -volname "StudyGuard $VERSION" -srcfolder "$BUILD/stage" -ov -format UDZO "$DMG"
-echo "Created $DMG"
+hdiutil create -volname "StudyGuard $STUDYGUARD_VERSION" -srcfolder "$BUILD/stage" -ov -format UDZO "$DMG"
+printf 'Created %s\n' "$DMG"

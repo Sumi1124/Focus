@@ -1,3 +1,17 @@
+# StudyGuard 1.3.0
+
+- Adds Sparkle-powered in-app download, installation, and relaunch from Settings → Check for updates.
+- Adds Check for Updates to the StudyGuard application menu.
+- Offers optional automatic checks; installation remains a user action.
+- Verifies update archives with StudyGuard's Ed25519 signing key before extraction. Only the public key is included in source; the private key stays in the signing Mac's Keychain.
+- Keeps the current app and settings until the new version is ready to install. Existing local goals, app/site lists, and history are retained.
+- Disables manual update checks during an active session.
+- Provides a pinned Sparkle dependency and a script to generate the signed GitHub-hosted update feed for future releases.
+
+Install 1.3.0 once to enable this updater. Versions 1.2.0 and older can only open the GitHub download page. After this upgrade, future signed versions can install inside StudyGuard. Copy the app out of its DMG into Applications or another writable folder before updating.
+
+Requires macOS 13 or newer on Apple silicon or Intel. This build is locally signed and is not notarized. Both architectures were compiled. The download/install/relaunch lifecycle has not been tested end to end.
+
 # StudyGuard 1.2.0
 
 - Implements the paper-and-ink Penpot design in the native SwiftUI app.
