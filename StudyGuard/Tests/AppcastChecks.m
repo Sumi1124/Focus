@@ -38,7 +38,6 @@ int main(int argc, const char *argv[]) {
                 NSString *version = dictionary[@"sparkle:shortVersionString"];
                 NSCAssert(version.length > 0, @"The update must have a visible version");
                 NSString *archiveURL = [NSString stringWithFormat:@"https://github.com/Sumi1124/Focus/releases/download/studyguard-v%@/StudyGuard-%@-macOS-universal.dmg", version, version];
-                NSString *releaseURL = [NSString stringWithFormat:@"https://github.com/Sumi1124/Focus/releases/tag/studyguard-v%@", version];
                 if (dictionary[@"enclosure"] != nil) {
                     NSCAssert(!item.informationOnlyUpdate, @"A signed archive must support in-app installation");
                     NSCAssert([item.fileURL.absoluteString isEqualToString:archiveURL], @"The installer must use the exact published DMG");
@@ -46,7 +45,7 @@ int main(int argc, const char *argv[]) {
                     NSCAssert(signature.length == 64, @"The signed update must contain an Ed25519 signature");
                 } else {
                     NSCAssert(item.informationOnlyUpdate && item.fileURL == nil, @"Announcement must use Sparkle's supported informational mode");
-                    NSCAssert([item.infoURL.absoluteString isEqualToString:releaseURL], @"Learn More must open the published release");
+                    NSCAssert([item.infoURL.absoluteString isEqualToString:archiveURL], @"Learn More must download the exact published installer directly");
                 }
             } else if (dictionary[@"enclosure"] != nil) {
                 NSCAssert(!item.informationOnlyUpdate && item.fileURL != nil, @"Existing signed installation updates must remain available");

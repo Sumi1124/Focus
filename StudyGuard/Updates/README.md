@@ -8,7 +8,7 @@ Automatic checking is off by default and can be enabled in Settings. Installatio
 
 ## StudyGuard 1.6.0 announcement
 
-The feed announces 1.6.0 using Sparkle's supported informational update format: a version and release-page link with no archive enclosure. Installed copies of 1.4.0 can discover it through **Check for Updates** and open **Learn More…** to download the DMG. Quit the app and replace it in Applications to install this release; saved settings and history are retained.
+The feed announces 1.6.0 using Sparkle's supported informational update format: a version and direct DMG link with no archive enclosure. Installed copies of 1.4.0 and 1.5.1 can discover it through **Check for Updates**. **Learn More…** opens the installer download in the default browser without visiting a GitHub release page. The button label is supplied by the installed Sparkle framework. Quit the app and replace it in Applications to install this release; saved settings and history are retained.
 
 The signing key is not available in GitHub Actions, so 1.6.0 is not offered for automatic download/install/relaunch. Existing signed 1.4.0 and 1.3.0 feed entries and the public key are retained. On the signing Mac, sign the exact published 1.6.0 DMG and replace its informational entry with the generated signed enclosure to enable in-app installation. Do not rebuild the archive between signing and publication.
 
@@ -28,4 +28,4 @@ For a fork, use your own feed URL and signing key. Anyone can build this source,
 
 An app opened from a read-only DMG must first be copied to Applications or another writable installation folder. macOS may request administrator authorization if replacing an app in a protected location.
 
-The universal app was built and the update archive was signed. The download/install/relaunch lifecycle has not been tested end to end.
+The older 1.3.0 and 1.4.0 archives were signed; the 1.6.0 archive still needs its update signature. The download/install/relaunch lifecycle has not been tested end to end.
