@@ -1,0 +1,60 @@
+name: Build StudyGuard Update Setup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'StudyGuard/UpdateSetup/**'
+      - 'StudyGuard/Tests/UpdateSetupChecks.swift'
+      - 'StudyGuard/Scripts/build-update-setup.sh'
+      - '.github/workflows/studyguard-update-setup.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: studyguard-update-setup
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the published archive and signing checks
+        working-directory: StudyGuard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p work/update-setup/checks
+          gh release download studyguard-v1.6.0 --pattern StudyGuard-1.6.0-macOS-universal.dmg --dir work/update-setup/checks
+          gh release download studyguard-v1.4.0 --pattern StudyGuard-1.4.0-macOS-universal.dmg --dir work/update-setup/checks
+          swiftc -parse-as-library -swift-version 5 -framework CryptoKit \
+            UpdateSetup/UpdateSetupCore.swift Tests/UpdateSetupChecks.swift -o work/update-setup/checks/UpdateSetupChecks
+          work/update-setup/checks/UpdateSetupChecks \
+            work/update-setup/checks/StudyGuard-1.6.0-macOS-universal.dmg \
+            work/update-setup/checks/StudyGuard-1.4.0-macOS-universal.dmg
+      - name: Build the Mac helper and verify both executables
+        working-directory: StudyGuard
+        run: bash Scripts/build-update-setup.sh
+      - name: Upload helper artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: StudyGuard-Update-Setup
+          path: |
+            StudyGuard/releases/StudyGuard-1.6.0-Update-Setup-macOS-universal.zip
+            StudyGuard/releases/StudyGuard-1.6.0-Update-Setup-SHA256.txt
+          if-no-files-found: error
+      - name: Publish helper alongside the existing release
+        if: github.ref == 'refs/heads/main'
+        working-directory: StudyGuard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload studyguard-v1.6.0 \
+            releases/StudyGuard-1.6.0-Update-Setup-macOS-universal.zip \
+            releases/StudyGuard-1.6.0-Update-Setup-SHA256.txt --clobber
