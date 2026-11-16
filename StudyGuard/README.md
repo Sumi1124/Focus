@@ -28,6 +28,8 @@ Version 1.5 adds Study Notebook to the sidebar, with SourceDesk-inspired source 
 
 Blocking no longer depends only on a fixed list. Open **Distractions → AI relevance check**, turn it on, and name your focus session (for example "Organic chemistry"). While a focus session runs, StudyGuard reads the domain and page title of each open Safari, Chrome, Edge, or Brave tab, asks an AI whether it fits your session name, and closes the tabs that don't. Study Browser does the same once a page's title is known and offers **This site is relevant: allow it** if the AI is wrong. Your blocked list still applies, and **Always allowed sites** are never judged.
 
+Starting a focus session now asks **What are you working on?** so the AI judges against your current topic. In **Settings → Apple Calendar** you can let StudyGuard suggest your current calendar event as that topic and add finished focus sessions to your default calendar. This uses macOS's Calendar permission; event titles stay on your Mac unless you pick one as your topic.
+
 Pick how the AI is reached:
 
 - **Claude subscription (Claude Code)** or **ChatGPT subscription (Codex)**: no API key. StudyGuard runs the official `claude` or `codex` command-line tool that is already signed in on your Mac, the way Obsidian AI plugins do. Install the tool, sign in once in Terminal, then choose **Test connection**. Checks count toward your plan's usage. The Claude option runs with all tools disabled and no saved session; the Codex option has not been tested against a real install yet.

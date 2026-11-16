@@ -4,6 +4,8 @@
 - Works with your Claude subscription (Claude Code) or ChatGPT subscription (Codex) through the signed-in command-line tool, with no API key. Free Groq, Google Gemini, and OpenRouter keys are also supported.
 - Only the session name, each tab's domain, and its page title are sent; never full addresses, search text, or page contents. StudyGuard asks before first use of each service.
 - If the AI is unreachable, rate-limited, or unsure, nothing is closed. Your blocked list still always applies.
+- Asks "What are you working on?" every time you start a focus session, so the AI always judges against your current topic instead of an old one.
+- Optional Apple Calendar link in Settings: suggests your current calendar event as the topic and can add finished focus sessions to your calendar. It uses macOS's own Calendar permission.
 - Study Browser applies the same check and offers an "allow it" button for wrong calls. An Always allowed sites list is never judged.
 
 Requires macOS 13 or newer on Apple silicon or Intel. Download the DMG, quit StudyGuard, and replace it in Applications. Install and sign in to the Claude Code or Codex command-line tool first to use the subscription option.

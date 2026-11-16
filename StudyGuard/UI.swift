@@ -130,6 +130,7 @@ struct MainView: View {
     @State private var showSettings = false
     @State private var showDistractions = false
     @State private var showGoal = false
+    @State private var showStart = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -149,6 +150,7 @@ struct MainView: View {
         .ignoresSafeArea(.container, edges: .top)
         .sheet(isPresented: $showSettings) { SettingsView(model: model, updater: updater).preferredColorScheme(preferredScheme) }
         .sheet(isPresented: $showDistractions) { DistractionsView(model: model).preferredColorScheme(preferredScheme) }
+        .sheet(isPresented: $showStart) { StartSessionSheet(model: model, calendar: model.calendar).preferredColorScheme(preferredScheme) }
         .sheet(isPresented: $showGoal) { GoalView(model: model).preferredColorScheme(preferredScheme) }
         .sheet(isPresented: $showBrowser) { StudyBrowser(model: model).frame(minWidth: 800, minHeight: 600).preferredColorScheme(preferredScheme) }
     }
@@ -270,7 +272,7 @@ struct MainView: View {
                         if value.count > 100 { model.subject = String(value.prefix(100)) }
                     }
             }
-            Button { model.toggleSession() } label: {
+            Button { if model.isRunning || model.isBreak { model.toggleSession() } else { showStart = true } } label: {
                 Text(model.isRunning ? (model.isBreak ? "End break" : "End session") : (model.isBreak ? "Start break" : "Start session"))
                     .frame(maxWidth: .infinity, minHeight: 6)
             }.buttonStyle(InkButtonStyle()).padding(.top, 18)
@@ -469,6 +471,62 @@ struct SheetHeading: View {
     }
 }
 
+struct StartSessionSheet: View {
+    @ObservedObject var model: FocusModel
+    @ObservedObject var calendar: CalendarLink
+    @Environment(\.dismiss) private var dismiss
+    @State private var topic = ""
+    @State private var suggestion: String?
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SheetHeading(title: "What are you working on?") { dismiss() }
+            Text(model.relevance.isEnabled
+                 ? "The AI uses this to decide which open sites fit your session and which to close."
+                 : "This names your session in History. Turn on the AI relevance check in Distractions to close off-topic tabs.")
+                .foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 14)
+            TextField("For example: Organic chemistry, chapter 4", text: $topic).textFieldStyle(.plain).font(Ink.sans(15))
+                .padding(.horizontal, 14).frame(height: 44).background(Ink.field, in: RoundedRectangle(cornerRadius: 4))
+                .padding(.top, 18).onSubmit(start)
+                .onChange(of: topic) { value in if value.count > 100 { topic = String(value.prefix(100)) } }
+            if let suggestion, suggestion != topic {
+                InkLink(title: "From your calendar: “\(suggestion)”. Use it →") { topic = suggestion }.padding(.top, 12)
+            }
+            if model.relevance.isEnabled && topic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("Without a topic, the AI check is skipped this session.").font(Ink.sans(12)).foregroundStyle(Ink.rust).padding(.top, 12)
+            }
+            Spacer(minLength: 24)
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }.buttonStyle(InkButtonStyle(primary: false)).keyboardShortcut(.cancelAction)
+                Button("Start session", action: start).buttonStyle(InkButtonStyle()).keyboardShortcut(.defaultAction)
+            }
+        }.padding(28).frame(width: 520, height: 300).font(Ink.sans()).foregroundStyle(Ink.text).background(Ink.paper)
+            .onAppear { topic = model.subject; suggestion = calendar.suggestedTopic() }
+    }
+    private func start() {
+        model.subject = topic.trimmingCharacters(in: .whitespacesAndNewlines)
+        dismiss()
+        model.toggleSession()
+    }
+}
+
+struct CalendarSettingsSection: View {
+    @ObservedObject var calendar: CalendarLink
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Apple Calendar").font(Ink.sans(16, .medium))
+            Toggle("Suggest my current calendar event as the session topic", isOn: Binding(
+                get: { calendar.suggestEnabled }, set: { value in Task { await calendar.setSuggest(value) } }
+            )).toggleStyle(.checkbox).font(Ink.sans(13)).padding(.top, 12)
+            Toggle("Add finished focus sessions to my calendar", isOn: Binding(
+                get: { calendar.logEnabled }, set: { value in Task { await calendar.setLog(value) } }
+            )).toggleStyle(.checkbox).font(Ink.sans(13)).padding(.top, 8)
+            Text(calendar.status.isEmpty ? "Uses macOS's Calendar permission. Event titles stay on this Mac unless you pick one as your topic." : calendar.status)
+                .font(Ink.sans(12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 10)
+        }
+    }
+}
+
 struct SettingsView: View {
     @ObservedObject var model: FocusModel
     @ObservedObject var updater: AppUpdater
@@ -489,6 +547,8 @@ struct SettingsView: View {
             Text("System follows your Mac. Light and Dark stay as you choose.")
                 .font(Ink.sans(12)).foregroundStyle(Ink.muted).padding(.top, 12)
             InkRule().padding(.vertical, 24)
+            CalendarSettingsSection(calendar: model.calendar)
+            InkRule().padding(.vertical, 24)
             Text("Updates").font(Ink.sans(16, .medium))
             Text("Download and install new versions inside StudyGuard.")
                 .foregroundStyle(Ink.muted).padding(.top, 14)
@@ -508,7 +568,7 @@ struct SettingsView: View {
             Text("Goals and history are stored on this Mac.").font(Ink.sans(13)).foregroundStyle(Ink.muted)
             Spacer(minLength: 20)
             HStack { Spacer(); Button("Done") { dismiss() }.buttonStyle(InkButtonStyle()).keyboardShortcut(.cancelAction) }
-        }.padding(28).frame(width: 560, height: 630).font(Ink.sans()).foregroundStyle(Ink.text).background(Ink.paper)
+        }.padding(28).frame(width: 560, height: 770).font(Ink.sans()).foregroundStyle(Ink.text).background(Ink.paper)
     }
 }
 

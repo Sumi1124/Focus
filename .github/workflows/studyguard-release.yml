@@ -29,8 +29,8 @@ jobs:
         run: |
           mkdir -p work/checks
           swiftc -parse-as-library -swift-version 5 \
-            -framework AppKit -framework Combine -framework SwiftUI -framework WebKit -framework PDFKit \
-            StudyGuard.swift NotebookCore.swift Notebook.swift RelevanceGuard.swift Tests/NotebookChecks.swift \
+            -framework AppKit -framework Combine -framework SwiftUI -framework WebKit -framework PDFKit -framework EventKit \
+            StudyGuard.swift NotebookCore.swift Notebook.swift RelevanceGuard.swift CalendarLink.swift Tests/NotebookChecks.swift \
             -o work/checks/NotebookChecks
           swiftc -parse-as-library -swift-version 5 \
             -framework AppKit -framework Combine -framework SwiftUI \

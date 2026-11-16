@@ -69,6 +69,7 @@ final class FocusModel: ObservableObject {
     private var browserChecksInProgress = Set<String>()
     private let defaults: UserDefaults
     let relevance: RelevanceChecker
+    let calendar: CalendarLink
     private let statsDateKey = "focusSecondsByDay"
     private let timerStateKey = "savedTimerState"
     private var recordedToday: [String: Int]
@@ -76,6 +77,7 @@ final class FocusModel: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         relevance = RelevanceChecker(defaults: defaults)
+        calendar = CalendarLink(defaults: defaults)
         recordedToday = defaults.dictionary(forKey: statsDateKey) as? [String: Int] ?? [:]
         totalFocusSeconds = recordedToday.values.reduce(0, +)
         todayFocusSeconds = recordedToday[Self.dayKey(for: Date())] ?? 0
@@ -488,6 +490,7 @@ final class FocusModel: ObservableObject {
             let title = subject.trimmingCharacters(in: .whitespacesAndNewlines)
             history.insert(StudySession(startedAt: startedAt, subject: title.isEmpty ? "Focus session" : title, seconds: sessionSeconds, completed: completed), at: 0)
             history = Array(history.prefix(100))
+            calendar.logSession(subject: title.isEmpty ? "Focus session" : title, start: startedAt, seconds: sessionSeconds)
             if let data = try? JSONEncoder().encode(history) { defaults.set(data, forKey: "studySessionHistory") }
         }
         isRunning = false
