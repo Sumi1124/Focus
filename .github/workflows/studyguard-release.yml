@@ -157,5 +157,5 @@ jobs:
             "releases/StudyGuard-$STUDYGUARD_VERSION-macOS-universal.dmg" \
             "releases/StudyGuard-$STUDYGUARD_VERSION-source.zip" \
             "releases/StudyGuard-$STUDYGUARD_VERSION-SHA256.txt" \
-            --target "$GITHUB_SHA" --title "StudyGuard $STUDYGUARD_VERSION — Study Notebook" \
+            --target "$GITHUB_SHA" --title "StudyGuard $STUDYGUARD_VERSION" \
             --notes-file work/release-notes.md

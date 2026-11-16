@@ -1,3 +1,13 @@
+# StudyGuard 1.7.0 — AI relevance check
+
+- Closes tabs that don't fit what you're studying, not just sites on a fixed list. Turn it on in Distractions → AI relevance check and name your focus session.
+- Works with your Claude subscription (Claude Code) or ChatGPT subscription (Codex) through the signed-in command-line tool, with no API key. Free Groq, Google Gemini, and OpenRouter keys are also supported.
+- Only the session name, each tab's domain, and its page title are sent; never full addresses, search text, or page contents. StudyGuard asks before first use of each service.
+- If the AI is unreachable, rate-limited, or unsure, nothing is closed. Your blocked list still always applies.
+- Study Browser applies the same check and offers an "allow it" button for wrong calls. An Always allowed sites list is never judged.
+
+Requires macOS 13 or newer on Apple silicon or Intel. Download the DMG, quit StudyGuard, and replace it in Applications. Install and sign in to the Claude Code or Codex command-line tool first to use the subscription option.
+
 # StudyGuard 1.6.0 — Groq API settings
 
 - Adds an AI provider selector in Study Notebook → AI Settings.
