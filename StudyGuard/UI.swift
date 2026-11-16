@@ -515,6 +515,7 @@ struct SettingsView: View {
 struct DistractionsView: View {
     @ObservedObject var model: FocusModel
     @Environment(\.dismiss) private var dismiss
+    @State private var showRelevance = false
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SheetHeading(title: "Distractions") { dismiss() }
@@ -573,12 +574,94 @@ struct DistractionsView: View {
             }
             Spacer(minLength: 20)
             InkRule().padding(.bottom, 20)
-            HStack { Spacer(); Button("Done") { dismiss() }.buttonStyle(InkButtonStyle()).keyboardShortcut(.cancelAction) }
-        }.padding(28).frame(width: 700, height: 550).font(Ink.sans()).foregroundStyle(Ink.text).background(Ink.paper)
+            HStack {
+                InkLink(title: "AI relevance check →") { showRelevance = true }
+                Spacer()
+                Button("Done") { dismiss() }.buttonStyle(InkButtonStyle()).keyboardShortcut(.cancelAction)
+            }
+        }.sheet(isPresented: $showRelevance) { RelevanceSettingsView(relevance: model.relevance) }
+            .padding(28).frame(width: 700, height: 550).font(Ink.sans()).foregroundStyle(Ink.text).background(Ink.paper)
     }
     private func removeButton(_ name: String, action: @escaping () -> Void) -> some View {
         Button(action: action) { Image(systemName: "xmark").font(.system(size: 11)).foregroundStyle(Ink.muted).padding(6) }
             .buttonStyle(.plain).accessibilityLabel(name)
+    }
+}
+
+struct RelevanceSettingsView: View {
+    @ObservedObject var relevance: RelevanceChecker
+    @Environment(\.dismiss) private var dismiss
+    @State private var apiKey = ""
+    @State private var newAllowed = ""
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SheetHeading(title: "AI relevance") { dismiss() }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("During a focus session, an AI judges each open browser tab against your session name and closes the ones that don't fit. Your blocked list always applies too.")
+                        .foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 14)
+                    Toggle("Close tabs the AI judges off-topic", isOn: Binding(get: { relevance.isEnabled }, set: { relevance.setEnabled($0) }))
+                        .toggleStyle(.checkbox).font(Ink.sans(14, .medium)).padding(.top, 18)
+                    Text("Name your session (for example “Organic chemistry”) so the AI knows what is on-topic. Without a name nothing is judged.")
+                        .font(Ink.sans(12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 8)
+                    InkRule().padding(.vertical, 20)
+                    Text("AI service").font(Ink.sans(16, .medium))
+                    Picker("AI service", selection: $relevance.provider) {
+                        ForEach(RelevanceProvider.allCases) { Text($0.title).tag($0) }
+                    }.labelsHidden().padding(.top, 12)
+                    if relevance.provider.isCLI {
+                        Text("Uses your existing \(relevance.provider.shortName) subscription through its official command-line tool (\(relevance.provider.commandName)). No API key or extra billing. Install it, sign in once in Terminal, then choose Test connection. Each check counts toward your plan's usage.")
+                            .font(Ink.sans(12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 10)
+                        InkLink(title: "How to install \(relevance.provider.commandName) →") { NSWorkspace.shared.open(relevance.provider.setupPage) }.padding(.top, 8)
+                    } else {
+                        HStack(spacing: 10) {
+                            SecureField(relevance.hasKey ? "Key saved in Keychain" : "Paste API key", text: $apiKey)
+                                .textFieldStyle(.plain).font(Ink.mono(13)).padding(.horizontal, 12).frame(height: 40)
+                                .background(Ink.field, in: RoundedRectangle(cornerRadius: 4))
+                            Button("Save key") { if relevance.saveKey(apiKey) { apiKey = "" } }
+                                .buttonStyle(InkButtonStyle()).disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            if relevance.hasKey { Button("Remove") { relevance.removeKey() }.buttonStyle(InkButtonStyle(primary: false)) }
+                        }.padding(.top, 12)
+                        InkLink(title: "Get a free \(relevance.provider.shortName) key →") { NSWorkspace.shared.open(relevance.provider.setupPage) }.padding(.top, 8)
+                    }
+                    HStack(spacing: 10) {
+                        Text("Model").font(Ink.sans(13)).foregroundStyle(Ink.muted)
+                        TextField(relevance.provider.isCLI ? "Default" : relevance.provider.defaultModel, text: $relevance.modelName)
+                            .textFieldStyle(.plain).font(Ink.mono(13)).padding(.horizontal, 12).frame(height: 36)
+                            .background(Ink.field, in: RoundedRectangle(cornerRadius: 4))
+                    }.padding(.top, 14)
+                    HStack(spacing: 14) {
+                        Button { Task { await relevance.testConnection() } } label: { Text(relevance.isTesting ? "Testing…" : "Test connection") }
+                            .buttonStyle(InkButtonStyle(primary: false)).disabled(relevance.isTesting)
+                        Text(relevance.status).font(Ink.sans(12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                    }.padding(.top, 14)
+                    InkRule().padding(.vertical, 20)
+                    Text("Always allowed sites").font(Ink.sans(16, .medium))
+                    Text("These are never judged or closed. Their subdomains count too.").font(Ink.sans(12)).foregroundStyle(Ink.muted).padding(.top, 6)
+                    ForEach(relevance.allowedDomains, id: \.self) { domain in
+                        HStack {
+                            Text(domain).font(Ink.mono(13))
+                            Spacer()
+                            Button { relevance.removeAllowed(domain) } label: { Image(systemName: "xmark").font(.system(size: 11)).foregroundStyle(Ink.muted).padding(6) }
+                                .buttonStyle(.plain).accessibilityLabel("Remove \(domain)")
+                        }.padding(.top, 10)
+                    }
+                    HStack(spacing: 10) {
+                        TextField("example.com", text: $newAllowed).textFieldStyle(.plain).font(Ink.mono(13))
+                            .padding(.horizontal, 12).frame(height: 36).background(Ink.field, in: RoundedRectangle(cornerRadius: 4))
+                            .onSubmit { relevance.allow(domain: newAllowed); newAllowed = "" }
+                        Button("Add") { relevance.allow(domain: newAllowed); newAllowed = "" }
+                            .buttonStyle(InkButtonStyle()).disabled(RelevanceRules.cleanDomain(newAllowed) == nil)
+                    }.padding(.top, 12)
+                    InkRule().padding(.vertical, 20)
+                    Text("Privacy: only your session name, each tab's domain, and its page title are sent, never full addresses, search text, or page contents. If the AI can't be reached, nothing is closed.")
+                        .font(Ink.sans(12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                    Button("Reset permission") { relevance.resetConsent() }.buttonStyle(.plain)
+                        .font(Ink.sans(12, .medium)).foregroundStyle(Ink.blue).padding(.top, 10)
+                }.padding(.trailing, 8)
+            }
+            HStack { Spacer(); Button("Done") { dismiss() }.buttonStyle(InkButtonStyle()).keyboardShortcut(.cancelAction) }.padding(.top, 14)
+        }.padding(28).frame(width: 580, height: 680).font(Ink.sans()).foregroundStyle(Ink.text).background(Ink.paper)
     }
 }
 
@@ -603,6 +686,7 @@ struct StudyBrowser: View {
     @Environment(\.dismiss) private var dismiss
     @State private var address = "https://www.wikipedia.org"
     @State private var blockedURL: URL?
+    @State private var blockedByAI = false
     @State private var addressError = ""
     @State private var webView = WKWebView()
     var body: some View {
@@ -622,11 +706,20 @@ struct StudyBrowser: View {
             if let blockedURL {
                 VStack(spacing: 20) {
                     Text("This site is blocked").font(Ink.title(28))
-                    Text("\(blockedURL.host ?? "This site") is on your block list.").foregroundStyle(Ink.muted)
+                    if blockedByAI {
+                        Text("The AI judged \(blockedURL.host ?? "this site") unrelated to “\(model.relevanceTopic)”.").foregroundStyle(Ink.muted)
+                        Button("This site is relevant: allow it") {
+                            if let host = RelevanceRules.reviewableHost(blockedURL) { model.relevance.allow(domain: host) }
+                            self.blockedURL = nil; blockedByAI = false
+                            webView.load(URLRequest(url: blockedURL))
+                        }.buttonStyle(InkButtonStyle(primary: false))
+                    } else {
+                        Text("\(blockedURL.host ?? "This site") is on your block list.").foregroundStyle(Ink.muted)
+                    }
                     Text("Enter another address to continue.").font(Ink.sans(12)).foregroundStyle(Ink.muted)
                 }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Ink.paper)
             } else {
-                BrowserWebView(webView: webView, model: model, address: $address, blockedURL: $blockedURL)
+                BrowserWebView(webView: webView, model: model, address: $address, blockedURL: $blockedURL, blockedByAI: $blockedByAI)
             }
             InkRule()
             HStack {
@@ -647,6 +740,7 @@ struct StudyBrowser: View {
             addressError = "Enter a valid website address."; return
         }
         addressError = ""
+        blockedByAI = false
         address = url.absoluteString
         if model.isBlocked(url) { webView.stopLoading(); blockedURL = url; return }
         blockedURL = nil
@@ -659,7 +753,8 @@ struct BrowserWebView: NSViewRepresentable {
     @ObservedObject var model: FocusModel
     @Binding var address: String
     @Binding var blockedURL: URL?
-    func makeCoordinator() -> Coordinator { Coordinator(model: model, address: $address, blockedURL: $blockedURL) }
+    @Binding var blockedByAI: Bool
+    func makeCoordinator() -> Coordinator { Coordinator(model: model, address: $address, blockedURL: $blockedURL, blockedByAI: $blockedByAI) }
     func makeNSView(context: Context) -> WKWebView { webView.navigationDelegate = context.coordinator; return webView }
     func updateNSView(_ nsView: WKWebView, context: Context) { context.coordinator.model = model }
     @MainActor
@@ -667,8 +762,9 @@ struct BrowserWebView: NSViewRepresentable {
         var model: FocusModel
         @Binding var address: String
         @Binding var blockedURL: URL?
-        init(model: FocusModel, address: Binding<String>, blockedURL: Binding<URL?>) {
-            self.model = model; self._address = address; self._blockedURL = blockedURL
+        @Binding var blockedByAI: Bool
+        init(model: FocusModel, address: Binding<String>, blockedURL: Binding<URL?>, blockedByAI: Binding<Bool>) {
+            self.model = model; self._address = address; self._blockedURL = blockedURL; self._blockedByAI = blockedByAI
         }
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             guard let url = navigationAction.request.url else { decisionHandler(.allow); return }
@@ -679,7 +775,19 @@ struct BrowserWebView: NSViewRepresentable {
             } else { decisionHandler(.allow) }
         }
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            if let url = webView.url { address = url.absoluteString }
+            guard let url = webView.url else { return }
+            address = url.absoluteString
+            // During a focus session, ask the AI once the page title is known; failures leave the page open.
+            guard model.aiReviewReady, !model.isBlocked(url), let host = RelevanceRules.reviewableHost(url),
+                  !model.relevance.isAllowed(host: host) else { return }
+            let title = webView.title ?? ""
+            Task { @MainActor in
+                guard await model.relevance.verdict(topic: model.relevanceTopic, host: host, title: title) == false,
+                      webView.url == url, model.aiReviewReady else { return }
+                webView.stopLoading()
+                blockedByAI = true
+                blockedURL = url
+            }
         }
     }
 }

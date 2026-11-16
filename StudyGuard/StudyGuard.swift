@@ -68,12 +68,14 @@ final class FocusModel: ObservableObject {
     private var lastQuitRequest: [String: Date] = [:]
     private var browserChecksInProgress = Set<String>()
     private let defaults: UserDefaults
+    let relevance: RelevanceChecker
     private let statsDateKey = "focusSecondsByDay"
     private let timerStateKey = "savedTimerState"
     private var recordedToday: [String: Int]
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        relevance = RelevanceChecker(defaults: defaults)
         recordedToday = defaults.dictionary(forKey: statsDateKey) as? [String: Int] ?? [:]
         totalFocusSeconds = recordedToday.values.reduce(0, +)
         todayFocusSeconds = recordedToday[Self.dayKey(for: Date())] ?? 0
@@ -201,6 +203,14 @@ final class FocusModel: ObservableObject {
     func removeDomain(_ domain: String) {
         blockedDomains.removeAll { $0 == domain }
         defaults.set(blockedDomains, forKey: "blockedDomains")
+    }
+
+    /// The study topic the AI judges sites against: the session name.
+    var relevanceTopic: String { RelevanceRules.sanitize(subject, limit: 120) }
+
+    /// True only while a focus session is running with the AI relevance check on and a session name set.
+    var aiReviewReady: Bool {
+        isRunning && !isBreak && relevance.isEnabled && !relevanceTopic.isEmpty
     }
 
     func isBlocked(_ url: URL) -> Bool {
@@ -353,7 +363,7 @@ final class FocusModel: ObservableObject {
 
     private func closeBlockedTabs(in app: FocusApp, appleScriptName: String) {
         guard NSWorkspace.shared.runningApplications.contains(where: { $0.bundleIdentifier == app.bundleID }),
-              !blockedDomains.isEmpty,
+              !blockedDomains.isEmpty || aiReviewReady,
               browserChecksInProgress.insert(app.bundleID).inserted else { return }
         let now = Date()
         if let lastRequest = lastQuitRequest[app.bundleID], now.timeIntervalSince(lastRequest) < 3 {
@@ -361,9 +371,7 @@ final class FocusModel: ObservableObject {
             return
         }
         lastQuitRequest[app.bundleID] = now
-        let hosts = blockedDomains.map {
-            "\"\($0.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\""
-        }.joined(separator: ", ")
+        let hosts = blockedDomains.map(Self.appleScriptQuoted).joined(separator: ", ")
         let scriptSource = """
         set blockedHosts to {\(hosts)}
         tell application "\(appleScriptName)"
@@ -382,15 +390,94 @@ final class FocusModel: ObservableObject {
             end repeat
         end tell
         """
-        DispatchQueue.global(qos: .utility).async { [weak self] in
-            var error: NSDictionary?
-            NSAppleScript(source: scriptSource)?.executeAndReturnError(&error)
-            let hadError = error != nil
-            DispatchQueue.main.async { [weak self] in
-                self?.browserChecksInProgress.remove(app.bundleID)
-                if hadError {
-                    self?.notice = "Allow StudyGuard to control \(appleScriptName) in System Settings → Privacy & Security → Automation."
-                }
+        Task { [weak self] in
+            guard let self else { return }
+            var needsPermission = false
+            if !self.blockedDomains.isEmpty {
+                needsPermission = await Self.runAppleScript(scriptSource).failed
+            }
+            if !needsPermission, self.aiReviewReady {
+                needsPermission = await self.closeOffTopicTabs(appleScriptName: appleScriptName)
+            }
+            self.browserChecksInProgress.remove(app.bundleID)
+            if needsPermission {
+                self.notice = "Allow StudyGuard to control \(appleScriptName) in System Settings → Privacy & Security → Automation."
+            }
+        }
+    }
+
+    /// Lists every open tab, asks the AI about sites it has not judged yet, and closes the ones that are off-topic.
+    /// Returns true when the browser refused the AppleScript (Automation permission missing).
+    private func closeOffTopicTabs(appleScriptName: String) async -> Bool {
+        let titleProperty = appleScriptName == "Safari" ? "name" : "title"
+        let listing = await Self.runAppleScript("""
+        set output to ""
+        set tabChar to (ASCII character 9)
+        set lineChar to (ASCII character 10)
+        tell application "\(appleScriptName)"
+            repeat with winRef in windows
+                repeat with tabRef in tabs of winRef
+                    try
+                        set tabURL to URL of tabRef
+                        set tabTitle to \(titleProperty) of tabRef
+                        set output to output & tabURL & tabChar & tabTitle & lineChar
+                    end try
+                end repeat
+            end repeat
+        end tell
+        return output
+        """)
+        if listing.failed { return true }
+        let topic = relevanceTopic
+        var offTopicURLs: [String] = []
+        var offTopicHosts: [String] = []
+        var newQuestions = 0
+        for line in listing.output.split(whereSeparator: \.isNewline) {
+            guard aiReviewReady else { return false }
+            let parts = line.split(separator: "\t", maxSplits: 1, omittingEmptySubsequences: false)
+            guard let address = parts.first.map(String.init), let url = URL(string: address),
+                  let host = RelevanceRules.reviewableHost(url), !isBlocked(url), !relevance.isAllowed(host: host) else { continue }
+            let title = parts.count > 1 ? String(parts[1]) : ""
+            if !relevance.hasVerdict(topic: topic, host: host, title: title) {
+                guard newQuestions < 4 else { continue } // pace free-tier limits; the rest wait for the next sweep
+                newQuestions += 1
+            }
+            if await relevance.verdict(topic: topic, host: host, title: title) == false {
+                offTopicURLs.append(address)
+                if !offTopicHosts.contains(host) { offTopicHosts.append(host) }
+            }
+        }
+        guard !offTopicURLs.isEmpty, aiReviewReady else { return false }
+        let urls = offTopicURLs.map(Self.appleScriptQuoted).joined(separator: ", ")
+        let closed = await Self.runAppleScript("""
+        set targetURLs to {\(urls)}
+        tell application "\(appleScriptName)"
+            repeat with w from (count of windows) to 1 by -1
+                repeat with t from (count of tabs of window w) to 1 by -1
+                    try
+                        if targetURLs contains (URL of tab t of window w) then close tab t of window w
+                    end try
+                end repeat
+            end repeat
+        end tell
+        """)
+        if closed.failed { return true }
+        notice = "Closed \(offTopicURLs.count == 1 ? "a tab" : "\(offTopicURLs.count) tabs") that didn't fit “\(topic)”: \(offTopicHosts.joined(separator: ", ")). Wrong call? Allow the site in Distractions → AI relevance."
+        return false
+    }
+
+    private nonisolated static func appleScriptQuoted(_ text: String) -> String {
+        "\"" + text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
+    }
+
+    private struct ScriptResult { var output: String; var failed: Bool }
+
+    private nonisolated static func runAppleScript(_ source: String) async -> ScriptResult {
+        await withCheckedContinuation { (continuation: CheckedContinuation<ScriptResult, Never>) in
+            DispatchQueue.global(qos: .utility).async {
+                var error: NSDictionary?
+                let descriptor = NSAppleScript(source: source)?.executeAndReturnError(&error)
+                continuation.resume(returning: ScriptResult(output: descriptor?.stringValue ?? "", failed: error != nil))
             }
         }
     }

@@ -30,8 +30,13 @@ jobs:
           mkdir -p work/checks
           swiftc -parse-as-library -swift-version 5 \
             -framework AppKit -framework Combine -framework SwiftUI -framework WebKit -framework PDFKit \
-            StudyGuard.swift NotebookCore.swift Notebook.swift Tests/NotebookChecks.swift \
+            StudyGuard.swift NotebookCore.swift Notebook.swift RelevanceGuard.swift Tests/NotebookChecks.swift \
             -o work/checks/NotebookChecks
+          swiftc -parse-as-library -swift-version 5 \
+            -framework AppKit -framework Combine -framework SwiftUI \
+            RelevanceGuard.swift Tests/RelevanceChecks.swift \
+            -o work/checks/RelevanceChecks
+          work/checks/RelevanceChecks
           python3 Tests/mock_ollama.py > work/checks/mock-ollama.log 2>&1 &
           fixture_pid=$!
           trap 'kill "$fixture_pid" 2>/dev/null || true' EXIT

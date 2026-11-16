@@ -24,6 +24,17 @@ Version 1.5 adds Study Notebook to the sidebar, with SourceDesk-inspired source 
 - Study Notebook imports PDF, TXT, Markdown, RTF, website text, and pasted text. Citation buttons open the exact saved excerpt, with PDF page numbers where available.
 - Keep multiple notebooks, write notes, ask questions, generate summaries and key points, take multiple-choice quizzes, and flip through flashcards. Sources and notes work without AI; chat and generation use your chosen Ollama or Groq provider.
 
+## AI relevance check
+
+Blocking no longer depends only on a fixed list. Open **Distractions → AI relevance check**, turn it on, and name your focus session (for example "Organic chemistry"). While a focus session runs, StudyGuard reads the domain and page title of each open Safari, Chrome, Edge, or Brave tab, asks an AI whether it fits your session name, and closes the tabs that don't. Study Browser does the same once a page's title is known and offers **This site is relevant: allow it** if the AI is wrong. Your blocked list still applies, and **Always allowed sites** are never judged.
+
+Pick how the AI is reached:
+
+- **Claude subscription (Claude Code)** or **ChatGPT subscription (Codex)**: no API key. StudyGuard runs the official `claude` or `codex` command-line tool that is already signed in on your Mac, the way Obsidian AI plugins do. Install the tool, sign in once in Terminal, then choose **Test connection**. Checks count toward your plan's usage. The Claude option runs with all tools disabled and no saved session; the Codex option has not been tested against a real install yet.
+- **Groq, Google Gemini, or OpenRouter**: free-tier API keys stored in Keychain. The Groq key is shared with Study Notebook.
+
+Only the session name, each tab's domain, and its page title are sent, never full addresses, search text, or page contents, and the app asks before first use of each service. If the AI is unreachable, rate-limited, or unsure, nothing is closed. Judgments are cached per site and title, and at most four new sites are checked per sweep.
+
 ## Study Notebook
 
 Version 1.6 adds **AI Settings → Provider → Groq (cloud)** with a masked API key field, **Save key**, and **Remove key**. Create a free API key at [Groq Console](https://console.groq.com/keys), paste it, save it, and choose **Check connection**. The key stays in your Mac's Keychain. Groq's free tier has usage limits and supported models can change; the default is `llama-3.1-8b-instant`. No Ollama installation is needed for Groq. The app asks before sending selected source excerpts, your question, and recent chat to Groq, separately for each notebook. **Reset cloud permission** makes it ask again.

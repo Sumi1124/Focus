@@ -23,7 +23,7 @@ for ARCH in arm64 x86_64; do
     -framework AppKit -framework SwiftUI -framework Combine -framework WebKit -framework CoreText -framework PDFKit -framework Security \
     -F "$SPARKLE_DIR" -framework Sparkle -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
     "$ROOT/StudyGuard.swift" "$ROOT/UI.swift" "$ROOT/Updater.swift" \
-    "$ROOT/NotebookCore.swift" "$ROOT/Notebook.swift" "$ROOT/NotebookUI.swift" -o "$BUILD/$ARCH/StudyGuard"
+    "$ROOT/NotebookCore.swift" "$ROOT/Notebook.swift" "$ROOT/NotebookUI.swift" "$ROOT/RelevanceGuard.swift" -o "$BUILD/$ARCH/StudyGuard"
 done
 lipo -create "$BUILD/arm64/StudyGuard" "$BUILD/x86_64/StudyGuard" -output "$APP/Contents/MacOS/StudyGuard"
 
